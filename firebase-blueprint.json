@@ -1,0 +1,130 @@
+{
+  "entities": {
+    "Team": {
+      "title": "Team",
+      "description": "Represents a volleyball team in the tournament",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "level": {
+          "type": "string",
+          "enum": ["Base", "Intermedio", "Avanzato", "Gold", "Silver", "Bronze", "Beginner"]
+        },
+        "registeredAt": { "type": "string" },
+        "group": { "type": "string" },
+        "wins": { "type": "number" },
+        "losses": { "type": "number" },
+        "setsWon": { "type": "number" },
+        "setsLost": { "type": "number" },
+        "pointsWon": { "type": "number" },
+        "pointsLost": { "type": "number" },
+        "points": { "type": "number" }
+      },
+      "required": ["id", "name", "level", "registeredAt"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "Represents a tournament match in group or knockout stage",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "round": { "type": "number" },
+        "roundLabel": { "type": "string" },
+        "position": { "type": "number" },
+        "team1": { "type": "object" },
+        "team2": { "type": "object" },
+        "team1Score": { "type": "number" },
+        "team2Score": { "type": "number" },
+        "sets": { "type": "array" },
+        "status": {
+          "type": "string",
+          "enum": ["scheduled", "live", "completed"]
+        },
+        "court": { "type": "string" },
+        "time": { "type": "string" },
+        "winnerId": { "type": "string" },
+        "nextMatchId": { "type": "string" },
+        "nextMatchSlot": { "type": "string", "enum": ["team1", "team2"] },
+        "loserMatchId": { "type": "string" },
+        "loserMatchSlot": { "type": "string", "enum": ["team1", "team2"] },
+        "phase": { "type": "string", "enum": ["gironi", "eliminazione"] },
+        "groupName": { "type": "string" },
+        "pointsPerSet": { "type": "number" },
+        "maxSets": { "type": "number" },
+        "tieBreakPoints": { "type": "number" }
+      },
+      "required": ["id", "round", "roundLabel", "position", "team1Score", "team2Score", "sets", "status", "court", "time"]
+    },
+    "NotificationLog": {
+      "title": "NotificationLog",
+      "description": "A notification representing a score update, schedule change, or tournament event",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "time": { "type": "string" },
+        "type": { "type": "string", "enum": ["live_update", "schedule_change", "system", "result"] },
+        "matchId": { "type": "string" }
+      },
+      "required": ["id", "title", "message", "time", "type"]
+    },
+    "TournamentConfig": {
+      "title": "TournamentConfig",
+      "description": "Tournament runtime configuration settings, single court scheduling and match durations",
+      "type": "object",
+      "properties": {
+        "tournamentName": { "type": "string" },
+        "tournamentDate": { "type": "string" },
+        "tournamentLocation": { "type": "string" },
+        "quarterFinalsMode": { "type": "string", "enum": ["single_set_25", "best_of_3_tb15"] },
+        "courtCount": { "type": "number" },
+        "courtName": { "type": "string" },
+        "startTime": { "type": "string" },
+        "durationSingleSetMinutes": { "type": "number" },
+        "durationBestOf3Minutes": { "type": "number" },
+        "tournamentPhase": { "type": "string", "enum": ["setup", "gironi", "eliminazione", "completed"] }
+      }
+    },
+    "TournamentBackup": {
+      "title": "TournamentBackup",
+      "description": "Stores a named tournament snapshot/backup of teams, matches, config, and notifications for rollback",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "createdAtFormatted": { "type": "string" },
+        "teams": { "type": "array" },
+        "matches": { "type": "array" },
+        "config": { "type": "object" },
+        "notifications": { "type": "array" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["id", "name", "createdAt", "createdAtFormatted", "teams", "matches"]
+    }
+  },
+  "firestore": {
+    "/teams/{teamId}": {
+      "schema": "Team",
+      "description": "Stores volleyball teams registered for the tournament"
+    },
+    "/matches/{matchId}": {
+      "schema": "Match",
+      "description": "Stores volleyball matches across pool and knockout phases"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "NotificationLog",
+      "description": "Stores tournament notifications, live score alerts and schedule logs"
+    },
+    "/config/settings": {
+      "schema": "TournamentConfig",
+      "description": "Stores tournament general configuration including quarter-finals scoring mode"
+    },
+    "/backups/{backupId}": {
+      "schema": "TournamentBackup",
+      "description": "Stores admin-created named backups for restoring tournament state"
+    }
+  }
+}

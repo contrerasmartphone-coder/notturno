@@ -1,0 +1,10 @@
+{
+  "name": "Notturno 21 Agosto",
+  "description": "Gestione torneo notturno di pallavolo a 15 squadre con 5 gironi, classifica avulsa, ottavi di finale con BYE per la 1ª classificata, quarti, semifinali e finali con set a 25.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
