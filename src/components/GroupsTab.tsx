@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Team, Match } from '../types';
-import { sortGroupStandings, parseTimeToMinutes } from '../utils';
+import { sortGroupStandings, parseTimeToMinutes, computeTeamStats } from '../utils';
 import {
   Layers,
   Trophy,
@@ -16,6 +16,7 @@ import {
   Filter,
   Dices,
   Eye,
+  HelpCircle,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import ConfirmModal from './ConfirmModal';
@@ -46,6 +47,12 @@ export default function GroupsTab({
   const [viewMode, setViewMode] = useState<'groups' | 'chronological'>('groups');
   const [courtFilter, setCourtFilter] = useState<string>('all');
   const [isSimulateModalOpen, setIsSimulateModalOpen] = useState(false);
+
+  const getTeamName = (team: Team | null | undefined, fallback: string = 'TBD'): string => {
+    if (!team) return fallback;
+    const found = teams.find((t) => t.id === team.id);
+    return found ? found.name : team.name || fallback;
+  };
 
   const groupMatches = matches.filter((m) => m.phase === 'gironi' || m.groupName);
   const completedGroupMatches = groupMatches.filter((m) => m.status === 'completed');
@@ -268,8 +275,15 @@ export default function GroupsTab({
       {viewMode === 'groups' && (
         <div className="space-y-6">
           {displayedGroups.map((groupName) => {
-            const groupTeams = teams.filter((t) => t.group === groupName);
+            const computedTeams = computeTeamStats(teams, groupMatches);
             const gMatches = groupMatches.filter((m) => m.groupName === groupName);
+            const groupTeamIds = new Set<string>();
+            computedTeams.filter((t) => t.group === groupName).forEach((t) => groupTeamIds.add(t.id));
+            gMatches.forEach((m) => {
+              if (m.team1?.id) groupTeamIds.add(m.team1.id);
+              if (m.team2?.id) groupTeamIds.add(m.team2.id);
+            });
+            const groupTeams = computedTeams.filter((t) => groupTeamIds.has(t.id));
             const sortedTeams = sortGroupStandings(groupTeams, gMatches);
 
             return (
@@ -290,28 +304,28 @@ export default function GroupsTab({
                 </div>
 
                 {/* Standings Table for this Group */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm border-collapse">
+                <div className="overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+                  <table className="w-full text-left text-xs sm:text-sm border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-800 text-xs font-semibold uppercase text-slate-400 bg-slate-800/30">
-                        <th className="py-2.5 px-3 rounded-l-lg">Pos</th>
-                        <th className="py-2.5 px-3">Squadra</th>
-                        {isAdmin && <th className="py-2.5 px-3 text-center">Livello</th>}
-                        <th className="py-2.5 px-3 text-center font-bold text-amber-400">Punti</th>
-                        <th className="py-2.5 px-3 text-center">V - P</th>
-                        <th className="py-2.5 px-3 text-center">Set V-P</th>
-                        <th className="py-2.5 px-3 text-center">Punti V-P</th>
-                        <th className="py-2.5 px-3 text-center rounded-r-lg">Diff</th>
+                      <tr className="border-b border-slate-800 text-[10px] sm:text-xs font-semibold uppercase text-slate-400 bg-slate-800/30">
+                        <th className="py-2 px-1.5 sm:px-3 rounded-l-lg text-center w-8">Pos</th>
+                        <th className="py-2 px-1.5 sm:px-3 min-w-[110px] sm:min-w-[140px]">Squadra</th>
+                        {isAdmin && <th className="py-2 px-1.5 sm:px-3 text-center">Livello</th>}
+                        <th className="py-2 px-1.5 sm:px-3 text-center font-bold text-amber-400">Punti</th>
+                        <th className="py-2 px-1 sm:px-3 text-center">V - P</th>
+                        <th className="py-2 px-1 sm:px-3 text-center">Set V-P</th>
+                        <th className="py-2 px-1 sm:px-3 text-center">Punti V-P</th>
+                        <th className="py-2 px-1 sm:px-3 text-center rounded-r-lg">Diff</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
+                    <tbody className="divide-y divide-slate-800/60 text-xs sm:text-sm">
                       {sortedTeams.map((team, idx) => {
                         const diff = team.pointsWon - team.pointsLost;
                         return (
                           <tr key={team.id} className="hover:bg-slate-800/40 transition">
-                            <td className="py-3 px-3">
+                            <td className="py-2.5 px-1.5 sm:px-3 text-center">
                               <span
-                                className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                                className={`inline-flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-full text-[10px] sm:text-xs font-bold ${
                                   idx === 0
                                     ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                                     : idx === 1
@@ -322,28 +336,30 @@ export default function GroupsTab({
                                 {idx + 1}°
                               </span>
                             </td>
-                            <td className="py-3 px-3 font-semibold text-white">{team.name}</td>
+                            <td className="py-2.5 px-1.5 sm:px-3 font-semibold text-white text-xs sm:text-sm leading-snug break-words whitespace-normal">
+                              {getTeamName(team)}
+                            </td>
                             {isAdmin && (
-                              <td className="py-3 px-3 text-center">
-                                <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700/60">
+                              <td className="py-2.5 px-1.5 sm:px-3 text-center">
+                                <span className="text-[10px] sm:text-xs bg-slate-800 text-slate-300 px-1.5 sm:px-2 py-0.5 rounded border border-slate-700/60 whitespace-nowrap">
                                   {team.level}
                                 </span>
                               </td>
                             )}
-                            <td className="py-3 px-3 text-center font-bold text-amber-400 text-base">
+                            <td className="py-2.5 px-1.5 sm:px-3 text-center font-bold text-amber-400 text-sm sm:text-base">
                               {team.points}
                             </td>
-                            <td className="py-3 px-3 text-center text-slate-300">
+                            <td className="py-2.5 px-1 sm:px-3 text-center text-slate-300 text-[11px] sm:text-xs font-mono sm:font-sans whitespace-nowrap">
                               {team.wins} - {team.losses}
                             </td>
-                            <td className="py-3 px-3 text-center text-slate-300">
+                            <td className="py-2.5 px-1 sm:px-3 text-center text-slate-300 text-[11px] sm:text-xs font-mono sm:font-sans whitespace-nowrap">
                               {team.setsWon} - {team.setsLost}
                             </td>
-                            <td className="py-3 px-3 text-center text-slate-300">
+                            <td className="py-2.5 px-1 sm:px-3 text-center text-slate-300 text-[11px] sm:text-xs font-mono sm:font-sans whitespace-nowrap">
                               {team.pointsWon} - {team.pointsLost}
                             </td>
                             <td
-                              className={`py-3 px-3 text-center font-semibold ${
+                              className={`py-2.5 px-1 sm:px-3 text-center font-semibold text-[11px] sm:text-xs ${
                                 diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-slate-400'
                               }`}
                             >
@@ -370,52 +386,56 @@ export default function GroupsTab({
                         <div
                           key={match.id}
                           id={`match-card-${match.id}`}
-                          className={`border rounded-xl p-4 transition flex flex-col justify-between ${
+                          className={`border rounded-xl p-3.5 sm:p-4 transition flex flex-col justify-between ${
                             isCompleted
                               ? 'bg-slate-800/50 border-slate-700/80'
                               : 'bg-slate-800/20 border-slate-800 hover:border-slate-700'
                           }`}
                         >
                           <div>
-                            <div className="flex justify-between items-center text-xs text-slate-400 mb-2.5">
+                            <div className="flex justify-between items-center text-[11px] sm:text-xs text-slate-400 mb-2.5">
                               <span className="flex items-center gap-1">
-                                <MapPin className="w-3 h-3 text-amber-400" />
+                                <MapPin className="w-3 h-3 text-amber-400 shrink-0" />
                                 {match.court || `Campo ${(mIdx % 3) + 1}`}
                               </span>
                               <span className="flex items-center gap-1 font-mono text-slate-300 font-semibold">
-                                <Clock className="w-3 h-3 text-sky-400" />
+                                <Clock className="w-3 h-3 text-sky-400 shrink-0" />
                                 {match.time || '20:30'}
                               </span>
                             </div>
 
                             <div className="space-y-2">
                               <div
-                                className={`flex justify-between items-center ${
+                                className={`flex justify-between items-center gap-2 ${
                                   match.winnerId === match.team1?.id ? 'text-amber-400 font-bold' : 'text-slate-200'
                                 }`}
                               >
-                                <span className="text-sm truncate pr-2">{match.team1?.name || 'TBD'}</span>
-                                <span className="text-sm font-mono font-bold px-2 py-0.5 bg-slate-900 rounded">
+                                <span className="text-xs sm:text-sm font-semibold break-words leading-tight flex-1">
+                                  {getTeamName(match.team1)}
+                                </span>
+                                <span className="text-xs sm:text-sm font-mono font-bold px-2 py-0.5 bg-slate-900 rounded shrink-0">
                                   {set1 ? set1.team1 : '-'}
                                 </span>
                               </div>
 
                               <div
-                                className={`flex justify-between items-center ${
+                                className={`flex justify-between items-center gap-2 ${
                                   match.winnerId === match.team2?.id ? 'text-amber-400 font-bold' : 'text-slate-200'
                                 }`}
                               >
-                                <span className="text-sm truncate pr-2">{match.team2?.name || 'TBD'}</span>
-                                <span className="text-sm font-mono font-bold px-2 py-0.5 bg-slate-900 rounded">
+                                <span className="text-xs sm:text-sm font-semibold break-words leading-tight flex-1">
+                                  {getTeamName(match.team2)}
+                                </span>
+                                <span className="text-xs sm:text-sm font-mono font-bold px-2 py-0.5 bg-slate-900 rounded shrink-0">
                                   {set1 ? set1.team2 : '-'}
                                 </span>
                               </div>
                             </div>
                           </div>
 
-                          <div className="mt-3 pt-2.5 border-t border-slate-700/50 flex justify-between items-center">
+                          <div className="mt-3 pt-2.5 border-t border-slate-700/50 flex justify-between items-center gap-2 flex-wrap">
                             <span
-                              className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                              className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                                 isCompleted
                                   ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                                   : match.status === 'live'
@@ -430,7 +450,7 @@ export default function GroupsTab({
                               <button
                                 id={`edit-score-btn-${match.id}`}
                                 onClick={() => onOpenScoreModal(match)}
-                                className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                                className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
                                 {isCompleted ? 'Modifica' : 'Punteggio / Ora'}
@@ -445,6 +465,35 @@ export default function GroupsTab({
               </div>
             );
           })}
+
+          {/* Art. 42 FIPAV Tiebreaker Info Card */}
+          <div id="fipav-rules-card" className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-lg">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 mb-2.5">
+              <HelpCircle className="w-4 h-4 text-amber-400" />
+              Criteri di Classifica nei Gironi (Art. 42 Regolamento Gare FIPAV)
+            </h4>
+            <p className="text-xs text-slate-400 mb-3">
+              In caso di arrivo a pari punti di due o più squadre all'interno dello stesso girone, la graduatoria viene determinata secondo il seguente ordine di priorità:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3">
+                <span className="text-amber-400 font-bold block mb-1">1. Gare Vinte</span>
+                <span className="text-slate-300">Maggior numero di partite vinte nell'arco del girone.</span>
+              </div>
+              <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3">
+                <span className="text-amber-400 font-bold block mb-1">2. Quoziente Set</span>
+                <span className="text-slate-300">Rapporto tra set vinti e set persi (Set Vinti / Set Persi).</span>
+              </div>
+              <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3">
+                <span className="text-amber-400 font-bold block mb-1">3. Quoziente Punti</span>
+                <span className="text-slate-300">Rapporto tra punti fatti e subiti (Punti Fatti / Punti Subiti).</span>
+              </div>
+              <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3">
+                <span className="text-amber-400 font-bold block mb-1">4. Scontri Diretti</span>
+                <span className="text-slate-300">Esito delle partite giocate tra le squadre in situazione di parità.</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -478,56 +527,56 @@ export default function GroupsTab({
                   className="py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-slate-800/30 px-3 rounded-xl transition"
                 >
                   {/* Left: Time, Court, Round Label */}
-                  <div className="flex items-center gap-3 md:w-1/4">
-                    <div className="w-14 text-center py-1 bg-slate-800 text-sky-400 font-mono font-bold text-sm rounded-lg border border-slate-700">
+                  <div className="flex items-center gap-2.5 sm:gap-3 md:w-1/4">
+                    <div className="w-12 sm:w-14 text-center py-1 bg-slate-800 text-sky-400 font-mono font-bold text-xs sm:text-sm rounded-lg border border-slate-700 shrink-0">
                       {m.time || '20:30'}
                     </div>
                     <div>
-                      <div className="flex items-center gap-1.5 text-xs text-slate-300 font-semibold">
-                        <MapPin className="w-3 h-3 text-amber-400" />
+                      <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-300 font-semibold">
+                        <MapPin className="w-3 h-3 text-amber-400 shrink-0" />
                         {m.court || 'Campo 1'}
                       </div>
-                      <span className="text-[11px] text-slate-400 block">{m.roundLabel}</span>
+                      <span className="text-[10px] sm:text-[11px] text-slate-400 block">{m.roundLabel}</span>
                     </div>
                   </div>
 
                   {/* Center: Teams & Score */}
-                  <div className="flex-1 grid grid-cols-5 items-center bg-slate-900/60 border border-slate-800/80 rounded-xl px-4 py-2.5">
+                  <div className="flex-1 grid grid-cols-5 items-center bg-slate-900/60 border border-slate-800/80 rounded-xl px-2.5 sm:px-4 py-2 sm:py-2.5 gap-1 sm:gap-2">
                     <div className="col-span-2 text-left">
                       <span
-                        className={`text-sm font-semibold truncate block ${
+                        className={`text-xs sm:text-sm font-semibold break-words whitespace-normal leading-tight block ${
                           m.winnerId === m.team1?.id ? 'text-amber-400 font-bold' : 'text-white'
                         }`}
                       >
-                        {m.team1?.name || 'TBD'}
+                        {getTeamName(m.team1)}
                       </span>
                     </div>
 
-                    <div className="col-span-1 text-center font-mono font-bold text-sm">
+                    <div className="col-span-1 text-center font-mono font-bold text-xs sm:text-sm">
                       {isCompleted && set1 ? (
-                        <span className="bg-slate-800 px-2.5 py-1 rounded text-amber-300">
+                        <span className="bg-slate-800 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded text-amber-300 whitespace-nowrap">
                           {set1.team1} - {set1.team2}
                         </span>
                       ) : (
-                        <span className="text-slate-500 text-xs">VS</span>
+                        <span className="text-slate-500 text-[10px] sm:text-xs">VS</span>
                       )}
                     </div>
 
                     <div className="col-span-2 text-right">
                       <span
-                        className={`text-sm font-semibold truncate block ${
+                        className={`text-xs sm:text-sm font-semibold break-words whitespace-normal leading-tight block ${
                           m.winnerId === m.team2?.id ? 'text-amber-400 font-bold' : 'text-white'
                         }`}
                       >
-                        {m.team2?.name || 'TBD'}
+                        {getTeamName(m.team2)}
                       </span>
                     </div>
                   </div>
 
                   {/* Right: Status & Actions */}
-                  <div className="flex items-center justify-between md:justify-end gap-3 md:w-1/4">
+                  <div className="flex items-center justify-between md:justify-end gap-2 sm:gap-3 md:w-1/4">
                     <span
-                      className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${
+                      className={`text-[10px] sm:text-[11px] font-semibold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full ${
                         isCompleted
                           ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                           : m.status === 'live'
@@ -541,7 +590,7 @@ export default function GroupsTab({
                     {isAdmin && (
                       <button
                         onClick={() => onOpenScoreModal(m)}
-                        className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                        className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center gap-1 sm:gap-1.5 transition cursor-pointer"
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                         <span>{isCompleted ? 'Modifica' : 'Inserisci / Ora'}</span>

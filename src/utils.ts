@@ -1,22 +1,189 @@
 import { Team, Match, SetScore, TeamLevel, QuarterFinalsMode } from './types';
 
-// 15 Default Demo Teams for Volleyball Tournament
+// 15 Default Demo Teams for Volleyball Tournament with sample rosters
 export const DEMO_TEAMS: Omit<Team, 'wins' | 'losses' | 'setsWon' | 'setsLost' | 'pointsWon' | 'pointsLost' | 'points'>[] = [
-  { id: 't1', name: 'Volley Spike Titans', level: 'Avanzato', registeredAt: '2026-08-21 19:00', createdAt: 1724266800000 },
-  { id: 't2', name: 'I Muri Insuperabili', level: 'Avanzato', registeredAt: '2026-08-21 19:05', createdAt: 1724267100000 },
-  { id: 't3', name: 'Ace Attackers', level: 'Avanzato', registeredAt: '2026-08-21 19:10', createdAt: 1724267400000 },
-  { id: 't4', name: 'Sky Jumpers', level: 'Avanzato', registeredAt: '2026-08-21 19:15', createdAt: 1724267700000 },
-  { id: 't5', name: 'Thunder Volley', level: 'Avanzato', registeredAt: '2026-08-21 19:20', createdAt: 1724268000000 },
-  { id: 't6', name: 'Monster Blockers', level: 'Intermedio', registeredAt: '2026-08-21 19:25', createdAt: 1724268300000 },
-  { id: 't7', name: 'Sideout Kings', level: 'Intermedio', registeredAt: '2026-08-21 19:30', createdAt: 1724268600000 },
-  { id: 't8', name: 'Bagher d\'Acciaio', level: 'Intermedio', registeredAt: '2026-08-21 19:35', createdAt: 1724268900000 },
-  { id: 't9', name: 'Schiacciatori Notturni', level: 'Intermedio', registeredAt: '2026-08-21 19:40', createdAt: 1724269200000 },
-  { id: 't10', name: 'Volley Smashers', level: 'Intermedio', registeredAt: '2026-08-21 19:45', createdAt: 1724269500000 },
-  { id: 't11', name: 'Fast Setters', level: 'Base', registeredAt: '2026-08-21 19:50', createdAt: 1724269800000 },
-  { id: 't12', name: 'Palleggiatori Selvaggi', level: 'Base', registeredAt: '2026-08-21 19:55', createdAt: 1724270100000 },
-  { id: 't13', name: 'Difesa Totale', level: 'Base', registeredAt: '2026-08-21 20:00', createdAt: 1724270400000 },
-  { id: 't14', name: 'Night Volley Express', level: 'Base', registeredAt: '2026-08-21 20:05', createdAt: 1724270700000 },
-  { id: 't15', name: 'Pallavolo Forever', level: 'Base', registeredAt: '2026-08-21 20:10', createdAt: 1724271000000 },
+  {
+    id: 't1',
+    name: 'Volley Spike Titans',
+    level: 'Avanzato',
+    registeredAt: '2026-08-21 19:00',
+    createdAt: 1724266800000,
+    players: [
+      { id: 'p1_1', name: 'Marco Rossi', level: 'Nazionale' },
+      { id: 'p1_2', name: 'Luca Bianchi', level: 'Nazionale' },
+      { id: 'p1_3', name: 'Davide Conti', level: 'Regionale' },
+      { id: 'p1_4', name: 'Alessandro Ferri', level: 'Regionale' },
+    ],
+  },
+  {
+    id: 't2',
+    name: 'I Muri Insuperabili',
+    level: 'Avanzato',
+    registeredAt: '2026-08-21 19:05',
+    createdAt: 1724267100000,
+    players: [
+      { id: 'p2_1', name: 'Giuseppe Moretti', level: 'Nazionale' },
+      { id: 'p2_2', name: 'Matteo Gatti', level: 'Regionale' },
+      { id: 'p2_3', name: 'Simone Galli', level: 'Regionale' },
+      { id: 'p2_4', name: 'Andrea Ricci', level: 'Provinciale' },
+    ],
+  },
+  {
+    id: 't3',
+    name: 'Ace Attackers',
+    level: 'Avanzato',
+    registeredAt: '2026-08-21 19:10',
+    createdAt: 1724267400000,
+    players: [
+      { id: 'p3_1', name: 'Lorenzo Russo', level: 'Nazionale' },
+      { id: 'p3_2', name: 'Federico Villa', level: 'Regionale' },
+      { id: 'p3_3', name: 'Gabriele Leone', level: 'Regionale' },
+    ],
+  },
+  {
+    id: 't4',
+    name: 'Sky Jumpers',
+    level: 'Avanzato',
+    registeredAt: '2026-08-21 19:15',
+    createdAt: 1724267700000,
+    players: [
+      { id: 'p4_1', name: 'Christian Rinaldi', level: 'Regionale' },
+      { id: 'p4_2', name: 'Paolo Fontana', level: 'Regionale' },
+      { id: 'p4_3', name: 'Emanuele Greco', level: 'Provinciale' },
+    ],
+  },
+  {
+    id: 't5',
+    name: 'Thunder Volley',
+    level: 'Avanzato',
+    registeredAt: '2026-08-21 19:20',
+    createdAt: 1724268000000,
+    players: [
+      { id: 'p5_1', name: 'Tommaso Barbieri', level: 'Regionale' },
+      { id: 'p5_2', name: 'Stefano Marini', level: 'Regionale' },
+      { id: 'p5_3', name: 'Filippo De Luca', level: 'Provinciale' },
+    ],
+  },
+  {
+    id: 't6',
+    name: 'Monster Blockers',
+    level: 'Intermedio',
+    registeredAt: '2026-08-21 19:25',
+    createdAt: 1724268300000,
+    players: [
+      { id: 'p6_1', name: 'Daniele Costa', level: 'Regionale' },
+      { id: 'p6_2', name: 'Michele Serra', level: 'Provinciale' },
+      { id: 'p6_3', name: 'Roberto Romano', level: 'CSI' },
+    ],
+  },
+  {
+    id: 't7',
+    name: 'Sideout Kings',
+    level: 'Intermedio',
+    registeredAt: '2026-08-21 19:30',
+    createdAt: 1724268600000,
+    players: [
+      { id: 'p7_1', name: 'Fabio Monti', level: 'Provinciale' },
+      { id: 'p7_2', name: 'Nicola Vitale', level: 'Provinciale' },
+      { id: 'p7_3', name: 'Claudio Lombardi', level: 'CSI' },
+    ],
+  },
+  {
+    id: 't8',
+    name: "Bagher d'Acciaio",
+    level: 'Intermedio',
+    registeredAt: '2026-08-21 19:35',
+    createdAt: 1724268900000,
+    players: [
+      { id: 'p8_1', name: 'Giovanni Carbone', level: 'Regionale' },
+      { id: 'p8_2', name: 'Vincenzo Riva', level: 'Provinciale' },
+      { id: 'p8_3', name: 'Pietro Mariani', level: 'CSI' },
+    ],
+  },
+  {
+    id: 't9',
+    name: 'Schiacciatori Notturni',
+    level: 'Intermedio',
+    registeredAt: '2026-08-21 19:40',
+    createdAt: 1724269200000,
+    players: [
+      { id: 'p9_1', name: 'Enrico Parisi', level: 'Provinciale' },
+      { id: 'p9_2', name: 'Valerio Grassi', level: 'Provinciale' },
+      { id: 'p9_3', name: 'Manuel Pellegrini', level: 'CSI' },
+    ],
+  },
+  {
+    id: 't10',
+    name: 'Volley Smashers',
+    level: 'Intermedio',
+    registeredAt: '2026-08-21 19:45',
+    createdAt: 1724269500000,
+    players: [
+      { id: 'p10_1', name: 'Giacomo Ferretti', level: 'Provinciale' },
+      { id: 'p10_2', name: 'Alessio Valentini', level: 'CSI' },
+      { id: 'p10_3', name: 'Samuele Palumbo', level: 'CSI' },
+    ],
+  },
+  {
+    id: 't11',
+    name: 'Fast Setters',
+    level: 'Base',
+    registeredAt: '2026-08-21 19:50',
+    createdAt: 1724269800000,
+    players: [
+      { id: 'p11_1', name: 'Edoardo Mazza', level: 'Provinciale' },
+      { id: 'p11_2', name: 'Jacopo Basile', level: 'CSI' },
+      { id: 'p11_3', name: 'Riccardo Neri', level: 'CSI' },
+    ],
+  },
+  {
+    id: 't12',
+    name: 'Palleggiatori Selvaggi',
+    level: 'Base',
+    registeredAt: '2026-08-21 19:55',
+    createdAt: 1724270100000,
+    players: [
+      { id: 'p12_1', name: 'Leonardo Silvestri', level: 'CSI' },
+      { id: 'p12_2', name: 'Massimo Testa', level: 'CSI' },
+      { id: 'p12_3', name: 'Fabrizio Grasso', level: 'CSI' },
+    ],
+  },
+  {
+    id: 't13',
+    name: 'Difesa Totale',
+    level: 'Base',
+    registeredAt: '2026-08-21 20:00',
+    createdAt: 1724270400000,
+    players: [
+      { id: 'p13_1', name: 'Alberto D’Amico', level: 'CSI' },
+      { id: 'p13_2', name: 'Giorgio Coppola', level: 'CSI' },
+      { id: 'p13_3', name: 'Bruno Marchetti', level: 'CSI' },
+    ],
+  },
+  {
+    id: 't14',
+    name: 'Night Volley Express',
+    level: 'Base',
+    registeredAt: '2026-08-21 20:05',
+    createdAt: 1724270700000,
+    players: [
+      { id: 'p14_1', name: 'Diego Santoro', level: 'CSI' },
+      { id: 'p14_2', name: 'Vito Rizzo', level: 'CSI' },
+      { id: 'p14_3', name: 'Saverio Fiore', level: 'CSI' },
+    ],
+  },
+  {
+    id: 't15',
+    name: 'Pallavolo Forever',
+    level: 'Base',
+    registeredAt: '2026-08-21 20:10',
+    createdAt: 1724271000000,
+    players: [
+      { id: 'p15_1', name: 'Carmelo Barone', level: 'CSI' },
+      { id: 'p15_2', name: 'Angelo Greco', level: 'CSI' },
+      { id: 'p15_3', name: 'Raffaele Gentile', level: 'CSI' },
+    ],
+  },
 ];
 
 export const LEVEL_WEIGHTS: Record<TeamLevel, number> = {
@@ -198,10 +365,21 @@ export function generateGroupMatches(
 
 // Compute dynamic team stats from completed group matches
 export function computeTeamStats(teams: Team[], matches: Match[]): Team[] {
+  const groupMatches = matches.filter(
+    (m) => m.phase === 'gironi' || (m.groupName && m.groupName.startsWith('Girone'))
+  );
   const teamMap = new Map<string, Team>();
-  teams.forEach(t => {
+
+  teams.forEach((t) => {
+    // If t does not have a group assigned, look up if they appear in any group match
+    const matchWithGroup = groupMatches.find(
+      (m) => m.team1?.id === t.id || m.team2?.id === t.id
+    );
+    const assignedGroup = t.group || matchWithGroup?.groupName || '';
+
     teamMap.set(t.id, {
       ...t,
+      group: assignedGroup,
       wins: 0,
       losses: 0,
       setsWon: 0,
@@ -212,13 +390,30 @@ export function computeTeamStats(teams: Team[], matches: Match[]): Team[] {
     });
   });
 
-  matches.forEach(m => {
+  groupMatches.forEach((m) => {
     if (m.status !== 'completed' || !m.team1 || !m.team2) return;
     const t1 = teamMap.get(m.team1.id);
     const t2 = teamMap.get(m.team2.id);
     if (!t1 || !t2) return;
 
-    const isT1Winner = m.team1Score > m.team2Score;
+    // Determine winner reliably
+    let isT1Winner = false;
+    if (m.winnerId) {
+      isT1Winner = m.winnerId === m.team1.id;
+    } else if (m.team1Score !== m.team2Score) {
+      isT1Winner = m.team1Score > m.team2Score;
+    } else if (m.sets && m.sets.length > 0) {
+      const s1 = m.sets.filter((s) => (s.team1 || 0) > (s.team2 || 0)).length;
+      const s2 = m.sets.filter((s) => (s.team2 || 0) > (s.team1 || 0)).length;
+      if (s1 !== s2) {
+        isT1Winner = s1 > s2;
+      } else {
+        const sum1 = m.sets.reduce((acc, s) => acc + (s.team1 || 0), 0);
+        const sum2 = m.sets.reduce((acc, s) => acc + (s.team2 || 0), 0);
+        isT1Winner = sum1 > sum2;
+      }
+    }
+
     if (isT1Winner) {
       t1.wins += 1;
       t1.points += 3; // 3 points for win
@@ -229,76 +424,104 @@ export function computeTeamStats(teams: Team[], matches: Match[]): Team[] {
       t1.losses += 1;
     }
 
-    t1.setsWon += m.team1Score;
-    t1.setsLost += m.team2Score;
-    t2.setsWon += m.team2Score;
-    t2.setsLost += m.team1Score;
-
     if (m.sets && m.sets.length > 0) {
-      m.sets.forEach(s => {
-        t1.pointsWon += (s.team1 || 0);
-        t1.pointsLost += (s.team2 || 0);
-        t2.pointsWon += (s.team2 || 0);
-        t2.pointsLost += (s.team1 || 0);
+      let t1Sets = 0;
+      let t2Sets = 0;
+      m.sets.forEach((s) => {
+        const p1 = Number(s.team1) || 0;
+        const p2 = Number(s.team2) || 0;
+        t1.pointsWon += p1;
+        t1.pointsLost += p2;
+        t2.pointsWon += p2;
+        t2.pointsLost += p1;
+        if (p1 > p2) t1Sets++;
+        else if (p2 > p1) t2Sets++;
       });
+      t1.setsWon += t1Sets || (isT1Winner ? 1 : 0);
+      t1.setsLost += t2Sets || (isT1Winner ? 0 : 1);
+      t2.setsWon += t2Sets || (isT1Winner ? 0 : 1);
+      t2.setsLost += t1Sets || (isT1Winner ? 1 : 0);
+    } else {
+      t1.setsWon += m.team1Score || (isT1Winner ? 1 : 0);
+      t1.setsLost += m.team2Score || (isT1Winner ? 0 : 1);
+      t2.setsWon += m.team2Score || (isT1Winner ? 0 : 1);
+      t2.setsLost += m.team1Score || (isT1Winner ? 1 : 0);
     }
   });
 
   return Array.from(teamMap.values());
 }
 
-// Sort teams within a single group (Girone)
+// Sort teams within a single group (Girone) according to Art. 42 Regolamento Gare FIPAV:
+// 1. Punti in classifica (Points)
+// 2. Gare vinte (Wins - Maggior numero di partite vinte)
+// 3. Quoziente set (Set vinti / Set persi)
+// 4. Quoziente punti (Punti fatti / Punti subiti)
+// 5. Scontri diretti (Esito gare tra le squadre in parità)
+// 6. Differenza punti / Punti fatti / Ranking di ingresso
 export function sortGroupStandings(teamsInGroup: Team[], groupMatches: Match[]): Team[] {
   return [...teamsInGroup].sort((a, b) => {
-    // 1. Classification points descending
+    // 1. Punti in classifica descending
     if (b.points !== a.points) return b.points - a.points;
 
-    // 2. Head to head (if 2 teams tied)
-    const h2h = groupMatches.find(m =>
-      m.status === 'completed' &&
-      ((m.team1?.id === a.id && m.team2?.id === b.id) || (m.team1?.id === b.id && m.team2?.id === a.id))
+    // 2. Gare vinte: il maggior numero di partite vinte nell'arco del girone
+    if (b.wins !== a.wins) return b.wins - a.wins;
+
+    // 3. Quoziente set: rapporto tra set vinti e set persi (set vinti / set persi)
+    const qSetsA = a.setsLost === 0 ? (a.setsWon > 0 ? 999999 : 0) : a.setsWon / a.setsLost;
+    const qSetsB = b.setsLost === 0 ? (b.setsWon > 0 ? 999999 : 0) : b.setsWon / b.setsLost;
+    if (Math.abs(qSetsB - qSetsA) > 0.000001) return qSetsB - qSetsA;
+
+    // 4. Quoziente punti: rapporto tra i punti totali realizzati e i punti subiti (punti fatti / punti subiti)
+    const qPtsA = a.pointsLost === 0 ? (a.pointsWon > 0 ? 999999 : 0) : a.pointsWon / a.pointsLost;
+    const qPtsB = b.pointsLost === 0 ? (b.pointsWon > 0 ? 999999 : 0) : b.pointsWon / b.pointsLost;
+    if (Math.abs(qPtsB - qPtsA) > 0.000001) return qPtsB - qPtsA;
+
+    // 5. Scontri diretti: esito delle gare giocate tra le squadre in parità
+    const h2h = groupMatches.find(
+      (m) =>
+        m.status === 'completed' &&
+        ((m.team1?.id === a.id && m.team2?.id === b.id) || (m.team1?.id === b.id && m.team2?.id === a.id))
     );
-    if (h2h && h2h.winnerId) {
-      return h2h.winnerId === a.id ? -1 : 1;
+    if (h2h) {
+      if (h2h.winnerId) {
+        return h2h.winnerId === a.id ? -1 : 1;
+      }
+      if (h2h.team1Score !== h2h.team2Score) {
+        const t1Won = h2h.team1Score > h2h.team2Score;
+        const winnerId = t1Won ? h2h.team1?.id : h2h.team2?.id;
+        if (winnerId) return winnerId === a.id ? -1 : 1;
+      }
     }
 
-    // 3. Set quotient (setsWon / setsLost)
-    const qSetsA = a.setsLost === 0 ? (a.setsWon > 0 ? 999 : 0) : a.setsWon / a.setsLost;
-    const qSetsB = b.setsLost === 0 ? (b.setsWon > 0 ? 999 : 0) : b.setsWon / b.setsLost;
-    if (qSetsB !== qSetsA) return qSetsB - qSetsA;
-
-    // 4. Point quotient (pointsWon / pointsLost)
-    const qPtsA = a.pointsLost === 0 ? (a.pointsWon > 0 ? 999 : 0) : a.pointsWon / a.pointsLost;
-    const qPtsB = b.pointsLost === 0 ? (b.pointsWon > 0 ? 999 : 0) : b.pointsWon / b.pointsLost;
-    if (qPtsB !== qPtsA) return qPtsB - qPtsA;
-
-    // 5. Point difference (pointsWon - pointsLost)
+    // 6. Differenza punti (punti fatti - punti subiti)
     const diffA = a.pointsWon - a.pointsLost;
     const diffB = b.pointsWon - b.pointsLost;
     if (diffB !== diffA) return diffB - diffA;
 
-    // 6. Points won
+    // 7. Punti totali realizzati
     if (b.pointsWon !== a.pointsWon) return b.pointsWon - a.pointsWon;
 
-    // 7. Initial seeding / level
+    // 8. Livello iniziale & Ordine iscrizione
     const wA = LEVEL_WEIGHTS[a.level] || 1;
     const wB = LEVEL_WEIGHTS[b.level] || 1;
-    return wB - wA;
+    if (wB !== wA) return wB - wA;
+    return (a.registeredAt || '').localeCompare(b.registeredAt || '');
   });
 }
 
 // Compute Classifica Avulsa (Overall Standings 1° to 15°) across all 5 groups
 export function computeClassificaAvulsa(teams: Team[], matches: Match[]): Team[] {
-  const groupMatches = matches.filter(m => m.phase === 'gironi' || m.groupName);
+  const groupMatches = matches.filter((m) => m.phase === 'gironi' || m.groupName);
   const computedTeams = computeTeamStats(teams, groupMatches);
 
   const groupNames = ['Girone A', 'Girone B', 'Girone C', 'Girone D', 'Girone E'];
   const sortedGroups: Record<string, Team[]> = {};
   const teamGroupRank = new Map<string, number>();
 
-  groupNames.forEach(gName => {
-    const teamsInG = computedTeams.filter(t => t.group === gName);
-    const gMatches = groupMatches.filter(m => m.groupName === gName);
+  groupNames.forEach((gName) => {
+    const teamsInG = computedTeams.filter((t) => t.group === gName);
+    const gMatches = groupMatches.filter((m) => m.groupName === gName);
     const sorted = sortGroupStandings(teamsInG, gMatches);
     sortedGroups[gName] = sorted;
 
@@ -307,43 +530,48 @@ export function computeClassificaAvulsa(teams: Team[], matches: Match[]): Team[]
     });
   });
 
-  // Classifica Avulsa ordering:
-  // 1. Group position (1st places 1-5, 2nd places 6-10, 3rd places 11-15)
-  // 2. Classification points
-  // 3. Set quotient (setsWon / setsLost)
-  // 4. Point quotient (pointsWon / pointsLost)
-  // 5. Point difference (pointsWon - pointsLost)
-  // 6. Points won (pointsWon)
-  // 7. Level & registration order
+  // Classifica Avulsa ordering (Art. 43 Regolamento Gare FIPAV):
+  // 1. Miglior posizione nel girone (le prime con le prime, le seconde con le seconde, le terze con le terze)
+  // 2. Miglior quoziente punti/gare (punti classifica / partite giocate)
+  // 3. Miglior quoziente set (set vinti / set persi)
+  // 4. Miglior quoziente punti (punti fatti / punti subiti)
+  // 5. Sorteggio / Livello & Ordine iscrizione
   const overallSorted = [...computedTeams].sort((a, b) => {
     const rankA = teamGroupRank.get(a.id) || 99;
     const rankB = teamGroupRank.get(b.id) || 99;
 
-    // Primary: Position in respective group (1st, 2nd, 3rd)
+    // 1. Miglior posizione nel rispettivo girone (1ᵉ classificate 1-5, 2ᵉ classificate 6-10, 3ᵉ classificate 11-15)
     if (rankA !== rankB) return rankA - rankB;
 
-    // Secondary: Points in standings
+    // 2. Miglior quoziente punti/gare: rapporto tra punti classifica e partite giocate
+    const matchesA = a.wins + a.losses;
+    const matchesB = b.wins + b.losses;
+    const qPtsGareA = matchesA === 0 ? 0 : a.points / matchesA;
+    const qPtsGareB = matchesB === 0 ? 0 : b.points / matchesB;
+    if (Math.abs(qPtsGareB - qPtsGareA) > 0.000001) return qPtsGareB - qPtsGareA;
+
+    // If points/matches is identical, check absolute points as well
     if (b.points !== a.points) return b.points - a.points;
 
-    // Tertiary: Set quotient
-    const qSetsA = a.setsLost === 0 ? (a.setsWon > 0 ? 999 : 0) : a.setsWon / a.setsLost;
-    const qSetsB = b.setsLost === 0 ? (b.setsWon > 0 ? 999 : 0) : b.setsWon / b.setsLost;
-    if (qSetsB !== qSetsA) return qSetsB - qSetsA;
+    // 3. Miglior quoziente set: rapporto matematico tra totalità dei set vinti e set persi
+    const qSetsA = a.setsLost === 0 ? (a.setsWon > 0 ? 999999 : 0) : a.setsWon / a.setsLost;
+    const qSetsB = b.setsLost === 0 ? (b.setsWon > 0 ? 999999 : 0) : b.setsWon / b.setsLost;
+    if (Math.abs(qSetsB - qSetsA) > 0.000001) return qSetsB - qSetsA;
 
-    // Quaternary: Point quotient
-    const qPtsA = a.pointsLost === 0 ? (a.pointsWon > 0 ? 999 : 0) : a.pointsWon / a.pointsLost;
-    const qPtsB = b.pointsLost === 0 ? (b.pointsWon > 0 ? 999 : 0) : b.pointsWon / b.pointsLost;
-    if (qPtsB !== qPtsA) return qPtsB - qPtsA;
+    // 4. Miglior quoziente punti: rapporto matematico tra tutti i punti fatti e i punti subiti durante i set
+    const qPtsA = a.pointsLost === 0 ? (a.pointsWon > 0 ? 999999 : 0) : a.pointsWon / a.pointsLost;
+    const qPtsB = b.pointsLost === 0 ? (b.pointsWon > 0 ? 999999 : 0) : b.pointsWon / b.pointsLost;
+    if (Math.abs(qPtsB - qPtsA) > 0.000001) return qPtsB - qPtsA;
 
-    // Quinary: Point difference
+    // Differenza punti come ulteriore fattore di discriminazione
     const diffA = a.pointsWon - a.pointsLost;
     const diffB = b.pointsWon - b.pointsLost;
     if (diffB !== diffA) return diffB - diffA;
 
-    // Senary: Points scored
+    // Punti totali realizzati
     if (b.pointsWon !== a.pointsWon) return b.pointsWon - a.pointsWon;
 
-    // Fallback: Level & registration date
+    // 5. Sorteggio / Extrema Ratio: Livello & data d'ingresso
     const wA = LEVEL_WEIGHTS[a.level] || 1;
     const wB = LEVEL_WEIGHTS[b.level] || 1;
     if (wB !== wA) return wB - wA;

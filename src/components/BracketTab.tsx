@@ -6,6 +6,7 @@ import ConfirmModal from './ConfirmModal';
 
 interface BracketTabProps {
   matches: Match[];
+  teams?: Team[];
   isAdmin: boolean;
   quarterFinalsMode: QuarterFinalsMode;
   onOpenScoreModal: (match: Match) => void;
@@ -17,6 +18,7 @@ interface BracketTabProps {
 
 export default function BracketTab({
   matches,
+  teams = [],
   isAdmin,
   quarterFinalsMode,
   onOpenScoreModal,
@@ -26,6 +28,12 @@ export default function BracketTab({
   onShowToast,
 }: BracketTabProps) {
   const [isSimulateModalOpen, setIsSimulateModalOpen] = useState(false);
+
+  const getTeamName = (team: Team | null | undefined, fallback: string = 'TBD'): string => {
+    if (!team) return fallback;
+    const found = teams.find((t) => t.id === team.id);
+    return found ? found.name : team.name || fallback;
+  };
 
   const knockoutMatches = matches.filter((m) => m.phase === 'eliminazione' || m.round >= 2);
 
@@ -87,7 +95,7 @@ export default function BracketTab({
       <div
         key={m.id}
         id={`bracket-match-${m.id}`}
-        className={`bg-slate-900 border rounded-2xl p-4 shadow-md transition flex flex-col justify-between ${
+        className={`bg-slate-900 border rounded-2xl p-3 sm:p-4 shadow-md transition flex flex-col justify-between ${
           highlightSpecial
             ? 'border-amber-500/50 bg-gradient-to-b from-amber-500/10 to-slate-900 shadow-amber-500/5'
             : isCompleted
@@ -97,15 +105,15 @@ export default function BracketTab({
       >
         <div>
           {/* Header */}
-          <div className="flex justify-between items-center text-xs text-slate-400 mb-3">
-            <span className="font-semibold text-amber-400 truncate max-w-[140px]">{m.roundLabel}</span>
-            <div className="flex items-center gap-2 font-mono text-slate-300">
+          <div className="flex justify-between items-center text-[11px] sm:text-xs text-slate-400 mb-2.5 gap-2">
+            <span className="font-semibold text-amber-400 text-xs sm:text-sm break-words leading-tight flex-1">{m.roundLabel}</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 font-mono text-slate-300 shrink-0">
               <span className="flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-amber-400" />
+                <MapPin className="w-3 h-3 text-amber-400 shrink-0" />
                 {m.court}
               </span>
               <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-sky-400" />
+                <Clock className="w-3 h-3 text-sky-400 shrink-0" />
                 {m.time}
               </span>
             </div>
@@ -113,12 +121,12 @@ export default function BracketTab({
 
           {/* Seed indicator if present */}
           {m.matchSeedLabel && (
-            <div className="text-[11px] text-slate-500 font-medium mb-2">Accoppiamento: {m.matchSeedLabel}</div>
+            <div className="text-[10px] sm:text-[11px] text-slate-500 font-medium mb-2">Accoppiamento: {m.matchSeedLabel}</div>
           )}
 
           {/* Team 1 */}
           <div
-            className={`flex justify-between items-center py-2 px-2.5 rounded-xl transition ${
+            className={`flex justify-between items-center py-2 px-2 sm:px-2.5 rounded-xl transition gap-1.5 ${
               m.winnerId && m.winnerId === m.team1?.id
                 ? 'bg-amber-500/15 text-amber-300 font-bold border border-amber-500/30'
                 : m.team1
@@ -126,17 +134,21 @@ export default function BracketTab({
                 : 'text-slate-500 italic'
             }`}
           >
-            <div className="flex items-center gap-2 truncate pr-2">
-              <span className="text-sm truncate">
-                {m.team1?.name || (m.round === 3 && m.position === 1 ? '1ª Classificata (BYE)' : 'TBD')}
+            <div className="flex items-center gap-1.5 flex-1 pr-1">
+              <span className="text-xs sm:text-sm font-semibold break-words whitespace-normal leading-tight">
+                {m.team1
+                  ? getTeamName(m.team1)
+                  : m.round === 3 && m.position === 1
+                  ? '1ª Classificata (BYE)'
+                  : 'TBD'}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 font-mono text-sm">
+            <div className="flex items-center gap-1 font-mono text-xs sm:text-sm shrink-0">
               {m.sets && m.sets.length > 0 ? (
                 m.sets.map((s, idx) => (
                   <span
                     key={idx}
-                    className={`px-1.5 py-0.5 rounded text-xs ${
+                    className={`px-1 sm:px-1.5 py-0.5 rounded text-[10px] sm:text-xs ${
                       s.team1 > s.team2 ? 'bg-amber-500/30 text-amber-200 font-bold' : 'bg-slate-800 text-slate-400'
                     }`}
                   >
@@ -146,7 +158,7 @@ export default function BracketTab({
               ) : (
                 <span className="text-xs text-slate-600">-</span>
               )}
-              <span className="font-bold text-slate-200 ml-1 text-sm bg-slate-800/80 px-2 py-0.5 rounded">
+              <span className="font-bold text-slate-200 ml-1 text-xs sm:text-sm bg-slate-800/80 px-1.5 sm:px-2 py-0.5 rounded">
                 {m.team1Score}
               </span>
             </div>
@@ -154,7 +166,7 @@ export default function BracketTab({
 
           {/* Team 2 */}
           <div
-            className={`flex justify-between items-center py-2 px-2.5 rounded-xl mt-1.5 transition ${
+            className={`flex justify-between items-center py-2 px-2 sm:px-2.5 rounded-xl mt-1.5 transition gap-1.5 ${
               m.winnerId && m.winnerId === m.team2?.id
                 ? 'bg-amber-500/15 text-amber-300 font-bold border border-amber-500/30'
                 : m.team2
@@ -162,15 +174,15 @@ export default function BracketTab({
                 : 'text-slate-500 italic'
             }`}
           >
-            <div className="flex items-center gap-2 truncate pr-2">
-              <span className="text-sm truncate">{m.team2?.name || 'TBD'}</span>
+            <div className="flex items-center gap-1.5 flex-1 pr-1">
+              <span className="text-xs sm:text-sm font-semibold break-words whitespace-normal leading-tight">{getTeamName(m.team2)}</span>
             </div>
-            <div className="flex items-center gap-1.5 font-mono text-sm">
+            <div className="flex items-center gap-1 font-mono text-xs sm:text-sm shrink-0">
               {m.sets && m.sets.length > 0 ? (
                 m.sets.map((s, idx) => (
                   <span
                     key={idx}
-                    className={`px-1.5 py-0.5 rounded text-xs ${
+                    className={`px-1 sm:px-1.5 py-0.5 rounded text-[10px] sm:text-xs ${
                       s.team2 > s.team1 ? 'bg-amber-500/30 text-amber-200 font-bold' : 'bg-slate-800 text-slate-400'
                     }`}
                   >
@@ -180,7 +192,7 @@ export default function BracketTab({
               ) : (
                 <span className="text-xs text-slate-600">-</span>
               )}
-              <span className="font-bold text-slate-200 ml-1 text-sm bg-slate-800/80 px-2 py-0.5 rounded">
+              <span className="font-bold text-slate-200 ml-1 text-xs sm:text-sm bg-slate-800/80 px-1.5 sm:px-2 py-0.5 rounded">
                 {m.team2Score}
               </span>
             </div>
@@ -188,9 +200,9 @@ export default function BracketTab({
         </div>
 
         {/* Footer actions */}
-        <div className="mt-4 pt-3 border-t border-slate-800/80 flex justify-between items-center">
+        <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex justify-between items-center gap-2 flex-wrap">
           <span
-            className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+            className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full ${
               isCompleted
                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                 : isLive
@@ -206,7 +218,7 @@ export default function BracketTab({
               id={`bracket-edit-score-${m.id}`}
               onClick={() => onOpenScoreModal(m)}
               disabled={!m.team1 || !m.team2}
-              className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-30 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+              className="px-2 sm:px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-30 text-amber-400 border border-amber-500/30 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
             >
               <Edit3 className="w-3.5 h-3.5" />
               Punteggio / Ora
@@ -315,7 +327,7 @@ export default function BracketTab({
               <div>
                 <span className="text-2xl mb-1 block">🥈</span>
                 <span className="text-xs uppercase font-bold text-slate-400">2° Classificato</span>
-                <h4 className="text-lg font-bold text-white mt-1">{secondPlaceTeam?.name || 'TBD'}</h4>
+                <h4 className="text-lg font-bold text-white mt-1">{getTeamName(secondPlaceTeam)}</h4>
               </div>
               <span className="text-xs text-slate-500 mt-2 font-medium">Medaglia d'Argento</span>
             </div>
@@ -325,7 +337,7 @@ export default function BracketTab({
               <div>
                 <span className="text-4xl mb-1 block">🏆</span>
                 <span className="text-xs uppercase font-bold text-amber-400">Campioni del Torneo Notturno</span>
-                <h4 className="text-xl font-black text-white mt-1">{firstPlaceTeam?.name || 'TBD'}</h4>
+                <h4 className="text-xl font-black text-white mt-1">{getTeamName(firstPlaceTeam)}</h4>
               </div>
               <span className="text-xs text-amber-300 font-bold mt-2">1° Posto • Vincitori Ufficiali</span>
             </div>
@@ -335,7 +347,7 @@ export default function BracketTab({
               <div>
                 <span className="text-2xl mb-1 block">🥉</span>
                 <span className="text-xs uppercase font-bold text-amber-600">3° Classificato</span>
-                <h4 className="text-lg font-bold text-white mt-1">{thirdPlaceTeam?.name || 'TBD'}</h4>
+                <h4 className="text-lg font-bold text-white mt-1">{getTeamName(thirdPlaceTeam)}</h4>
               </div>
               <span className="text-xs text-slate-500 mt-2 font-medium">Medaglia di Bronzo</span>
             </div>

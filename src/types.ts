@@ -1,4 +1,11 @@
 export type TeamLevel = 'Base' | 'Intermedio' | 'Avanzato';
+export type PlayerLevel = 'Nazionale' | 'Regionale' | 'Provinciale' | 'CSI';
+
+export interface Player {
+  id: string;
+  name: string;
+  level: PlayerLevel;
+}
 
 export interface Team {
   id: string;
@@ -7,6 +14,7 @@ export interface Team {
   registeredAt: string;
   createdAt?: number; // Epoch timestamp for precise insertion ordering
   group?: string; // "Girone A", "Girone B", "Girone C", "Girone D", "Girone E"
+  players?: Player[]; // Roster of players in the team
   
   // Dynamic stats computed for standings
   wins: number;

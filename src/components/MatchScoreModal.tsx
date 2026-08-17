@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Match, SetScore } from '../types';
+import { Match, SetScore, Team } from '../types';
 import { isSetFinished, swapMatchTimes, shiftMatchesOnCourt, parseTimeToMinutes, formatMinutesToTime } from '../utils';
 import { X, Trophy, Save, Clock, MapPin, AlertTriangle, CheckCircle2, ArrowLeftRight, FastForward, Check, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -7,6 +7,7 @@ import { motion } from 'motion/react';
 interface MatchScoreModalProps {
   match: Match;
   allMatches?: Match[];
+  teams?: Team[];
   onClose: () => void;
   onSaveScore: (matchId: string, updatedData: Partial<Match>) => Promise<void>;
   onBatchUpdateMatches?: (updatedMatches: Match[]) => Promise<void>;
@@ -16,6 +17,7 @@ interface MatchScoreModalProps {
 export default function MatchScoreModal({
   match,
   allMatches = [],
+  teams = [],
   onClose,
   onSaveScore,
   onBatchUpdateMatches,
@@ -24,6 +26,9 @@ export default function MatchScoreModal({
   const isBestOf3 = match.maxSets === 3;
   const targetPoints = match.pointsPerSet || 25;
   const tieBreakTarget = match.tieBreakPoints || (isBestOf3 && match.round === 3 ? 15 : 25);
+
+  const team1Name = teams.find((t) => t.id === match.team1?.id)?.name || match.team1?.name || 'TBD';
+  const team2Name = teams.find((t) => t.id === match.team2?.id)?.name || match.team2?.name || 'TBD';
 
   const [sets, setSets] = useState<SetScore[]>(() => {
     if (match.sets && match.sets.length > 0) {
@@ -241,23 +246,23 @@ export default function MatchScoreModal({
         )}
 
         {/* Teams Matchup Header */}
-        <div className="grid grid-cols-5 items-center bg-slate-800/40 border border-slate-800 rounded-xl p-4 text-center">
+        <div className="grid grid-cols-5 items-center bg-slate-800/40 border border-slate-800 rounded-xl p-3.5 sm:p-4 text-center gap-1.5">
           <div className="col-span-2 text-left">
-            <span className="text-[11px] text-slate-400 block font-medium">Squadra 1</span>
-            <span className="text-base font-bold text-white block truncate">{match.team1?.name || 'TBD'}</span>
-            <span className="text-xs text-amber-400 font-semibold">{t1SetsWon} set vinti</span>
+            <span className="text-[10px] sm:text-[11px] text-slate-400 block font-medium">Squadra 1</span>
+            <span className="text-xs sm:text-base font-bold text-white block break-words leading-tight">{team1Name}</span>
+            <span className="text-[11px] sm:text-xs text-amber-400 font-semibold">{t1SetsWon} set vinti</span>
           </div>
 
           <div className="col-span-1 text-center">
-            <span className="text-xs font-bold bg-slate-700/60 text-slate-300 px-2.5 py-1 rounded-full border border-slate-600/60">
+            <span className="text-[10px] sm:text-xs font-bold bg-slate-700/60 text-slate-300 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-slate-600/60">
               VS
             </span>
           </div>
 
           <div className="col-span-2 text-right">
-            <span className="text-[11px] text-slate-400 block font-medium">Squadra 2</span>
-            <span className="text-base font-bold text-white block truncate">{match.team2?.name || 'TBD'}</span>
-            <span className="text-xs text-amber-400 font-semibold">{t2SetsWon} set vinti</span>
+            <span className="text-[10px] sm:text-[11px] text-slate-400 block font-medium">Squadra 2</span>
+            <span className="text-xs sm:text-base font-bold text-white block break-words leading-tight">{team2Name}</span>
+            <span className="text-[11px] sm:text-xs text-amber-400 font-semibold">{t2SetsWon} set vinti</span>
           </div>
         </div>
 

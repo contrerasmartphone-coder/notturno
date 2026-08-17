@@ -14,6 +14,8 @@ import {
   Match,
   NotificationLog,
   TeamLevel,
+  Player,
+  PlayerLevel,
   QuarterFinalsMode,
   TournamentConfig,
   TournamentBackup,
@@ -59,6 +61,10 @@ import {
   Flame,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import notteDaLeoniBanner from './assets/images/notte_leoni_ultrawide_1786991381890.jpg';
+import logo90100Night from './assets/images/logo_90100_night_1786998231449.jpg';
+import logoVolleyPartinico from './assets/images/logo_volley_partinico_1786998242526.jpg';
+import logoContrera from './assets/images/logo_contrera_powered_1786998548772.jpg';
 
 export default function App() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -211,7 +217,7 @@ export default function App() {
   const handleAdminLoginSuccess = () => {
     setIsAdmin(true);
     sessionStorage.setItem('volley_admin_auth', 'true');
-    addToast('Accesso Amministratore effettuato con successo (Password 90100).', 'success', 'Benvenuto Admin');
+    addToast('Accesso Amministratore effettuato con successo.', 'success', 'Benvenuto Admin');
   };
 
   const handleAdminLogout = () => {
@@ -255,7 +261,7 @@ export default function App() {
     }
   };
 
-  const handleUpdateTeam = async (id: string, name: string, level: TeamLevel) => {
+  const handleUpdateTeam = async (id: string, name: string, level: TeamLevel, players?: Player[]) => {
     const existing = teams.find((t) => t.id === id);
     if (!existing) return;
 
@@ -268,11 +274,86 @@ export default function App() {
       return;
     }
 
-    const updated: Team = { ...existing, name: cleanName, level };
+    const updated: Team = {
+      ...existing,
+      name: cleanName,
+      level,
+      ...(players !== undefined ? { players } : {}),
+    };
     try {
-      await setDoc(doc(db, 'teams', id), cleanObject(updated));
+      const batch = writeBatch(db);
+      // 1. Update the team doc
+      batch.set(doc(db, 'teams', id), cleanObject(updated));
+
+      // 2. Cascade team name & level updates across all existing matches (Gironi & Tabellone)
+      const updatedMatches = matches.map((m) => {
+        let nextM = { ...m };
+
+        if (nextM.team1 && nextM.team1.id === id) {
+          nextM.team1 = {
+            ...nextM.team1,
+            name: cleanName,
+            level,
+            ...(players !== undefined ? { players } : {}),
+          };
+        }
+
+        if (nextM.team2 && nextM.team2.id === id) {
+          nextM.team2 = {
+            ...nextM.team2,
+            name: cleanName,
+            level,
+            ...(players !== undefined ? { players } : {}),
+          };
+        }
+
+        return nextM;
+      });
+
+      // Auto resolve propagation in case bracket winners were carried forward
+      const fullyResolved = autoResolveAndPropagate(updatedMatches);
+      fullyResolved.forEach((m) => {
+        const mRef = doc(db, 'matches', m.id);
+        batch.set(mRef, cleanObject(m));
+      });
+
+      await batch.commit();
+      addToast(`Squadra "${cleanName}" aggiornata anche nei gironi e nel tabellone.`, 'success', 'Squadra Aggiornata');
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `teams/${id}`);
+    }
+  };
+
+  const handleUpdateTeamPlayers = async (teamId: string, players: Player[]) => {
+    const existing = teams.find((t) => t.id === teamId);
+    if (!existing) return;
+
+    const updated: Team = { ...existing, players };
+    try {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'teams', teamId), cleanObject(updated));
+
+      // Propagate players to matches
+      matches.forEach((m) => {
+        let changed = false;
+        let nextM = { ...m };
+        if (nextM.team1 && nextM.team1.id === teamId) {
+          nextM.team1 = { ...nextM.team1, players };
+          changed = true;
+        }
+        if (nextM.team2 && nextM.team2.id === teamId) {
+          nextM.team2 = { ...nextM.team2, players };
+          changed = true;
+        }
+        if (changed) {
+          batch.set(doc(db, 'matches', m.id), cleanObject(nextM));
+        }
+      });
+
+      await batch.commit();
+      addToast(`Rosa atleti per "${existing.name}" salvata con successo.`, 'success', 'Atleti Aggiornati');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `teams/${teamId}`);
     }
   };
 
@@ -767,54 +848,57 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen bg-black text-slate-100 selection:bg-amber-500 selection:text-slate-950">
       {/* Top Ambient Light Glow */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-3/4 max-w-4xl h-48 bg-amber-500/10 blur-[120px] pointer-events-none rounded-full" />
 
+      {/* Full-width Neon Marquee Sign at Top of Page */}
+      <div className="w-full bg-black border-b border-amber-500/30 relative overflow-hidden flex items-center justify-center shadow-2xl shadow-amber-950/90">
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/15 pointer-events-none" />
+        <div className="w-full flex justify-center items-center bg-black overflow-hidden">
+          <img
+            src={notteDaLeoniBanner}
+            alt="Una Notte da Leoni - Torneo Notturno di Pallavolo"
+            referrerPolicy="no-referrer"
+            id="main-title-logo"
+            className="w-full h-auto max-h-48 sm:max-h-64 md:max-h-80 lg:max-h-96 object-cover sm:object-contain object-center select-none scale-[1.03] sm:scale-100 transition-transform duration-300"
+          />
+        </div>
+      </div>
+
       {/* Main Header Bar */}
-      <header id="main-header" className="sticky top-0 z-40 bg-slate-950/80 border-b border-slate-800/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
-          {/* Logo & Title */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 flex items-center justify-center font-black shadow-lg shadow-amber-500/20">
-              <Flame className="w-6 h-6 fill-slate-950" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base sm:text-lg font-black tracking-tight text-white">
-                  Notturno 21 Agosto
-                </span>
-                <span className="text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <Moon className="w-3 h-3 text-amber-400" />
-                  Pallavolo 15 Squadre
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 hidden sm:block">
-                5 Gironi da 3 • Classifica Avulsa • BYE 1ª • Ottavi, Quarti, Semifinali & Finali
-              </p>
-            </div>
+      <header id="main-header" className="sticky top-0 z-40 bg-black/95 border-b border-amber-500/20 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3">
+          {/* Subtitle & Event info */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full flex items-center gap-1.5">
+              <Moon className="w-3.5 h-3.5 text-amber-400" />
+              Notturno 21 Agosto • Campo Palamelina
+            </span>
+            <span className="text-xs text-slate-400 hidden md:inline">
+              Pallavolo 15 Squadre • 5 Gironi • Tabellone Finale
+            </span>
           </div>
 
-          {/* Admin Toggle & Controls */}
+          {/* Admin Toggle: Simple Open / Closed Padlock without text */}
           <div className="flex items-center gap-2">
             {isAdmin ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
-                  <Unlock className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Admin Attivo (90100)</span>
-                </span>
+              <div className="flex items-center gap-1.5">
                 <button
                   id="admin-logout-btn"
                   onClick={handleAdminLogout}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl border border-slate-700 transition cursor-pointer"
+                  className="p-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 rounded-xl border border-emerald-500/40 transition cursor-pointer flex items-center justify-center shadow-sm shadow-emerald-500/10"
+                  title="Admin attivo - Clicca per uscire"
+                  aria-label="Admin attivo - Clicca per uscire"
                 >
-                  Esci
+                  <Unlock className="w-4 h-4 text-emerald-400" />
                 </button>
                 <button
                   id="reset-tournament-btn"
                   onClick={() => setIsResetModalOpen(true)}
-                  className="p-1.5 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-xl transition cursor-pointer"
+                  className="p-2 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded-xl transition cursor-pointer"
                   title="Reset completo torneo"
+                  aria-label="Reset completo torneo"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
@@ -823,10 +907,11 @@ export default function App() {
               <button
                 id="admin-login-open-btn"
                 onClick={() => setIsAdminLoginOpen(true)}
-                className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-bold rounded-xl border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
+                className="p-2 bg-zinc-900/90 hover:bg-zinc-800 text-amber-400 hover:text-amber-300 rounded-xl border border-amber-500/30 hover:border-amber-500/60 transition cursor-pointer flex items-center justify-center shadow-sm"
+                title="Accedi all'area amministratore"
+                aria-label="Accedi all'area amministratore"
               >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Area Admin</span>
+                <Lock className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -840,15 +925,15 @@ export default function App() {
               onClick={() => setActiveTab('teams')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-2 ${
                 activeTab === 'teams'
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                  : 'text-slate-400 hover:text-white hover:bg-zinc-900'
               }`}
             >
               <Users className="w-4 h-4" />
               <span>Squadre</span>
               <span
                 className={`text-[11px] px-1.5 py-0.2 rounded-full ${
-                  activeTab === 'teams' ? 'bg-slate-950/20 text-slate-950 font-bold' : 'bg-slate-800 text-slate-400'
+                  activeTab === 'teams' ? 'bg-black/20 text-black font-bold' : 'bg-zinc-900 text-slate-400'
                 }`}
               >
                 {teams.length}/15
@@ -860,8 +945,8 @@ export default function App() {
               onClick={() => setActiveTab('groups')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-2 ${
                 activeTab === 'groups'
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                  : 'text-slate-400 hover:text-white hover:bg-zinc-900'
               }`}
             >
               <Layers className="w-4 h-4" />
@@ -873,8 +958,8 @@ export default function App() {
               onClick={() => setActiveTab('avulsa')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-2 ${
                 activeTab === 'avulsa'
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                  : 'text-slate-400 hover:text-white hover:bg-zinc-900'
               }`}
             >
               <Trophy className="w-4 h-4" />
@@ -886,8 +971,8 @@ export default function App() {
               onClick={() => setActiveTab('bracket')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-2 ${
                 activeTab === 'bracket'
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                  : 'text-slate-400 hover:text-white hover:bg-zinc-900'
               }`}
             >
               <GitBranch className="w-4 h-4" />
@@ -899,8 +984,8 @@ export default function App() {
               onClick={() => setActiveTab('notifications')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-2 ${
                 activeTab === 'notifications'
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                  : 'text-slate-400 hover:text-white hover:bg-zinc-900'
               }`}
             >
               <Bell className="w-4 h-4" />
@@ -909,7 +994,7 @@ export default function App() {
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
                     activeTab === 'notifications'
-                      ? 'bg-slate-950 text-amber-300'
+                      ? 'bg-black text-amber-300'
                       : 'bg-amber-500/20 text-amber-400'
                   }`}
                 >
@@ -924,8 +1009,8 @@ export default function App() {
                 onClick={() => setActiveTab('settings')}
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-2 ${
                   activeTab === 'settings'
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                    ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-zinc-900'
                 }`}
               >
                 <Settings className="w-4 h-4" />
@@ -952,6 +1037,7 @@ export default function App() {
                 isAdmin={isAdmin}
                 onAddTeam={handleAddTeam}
                 onUpdateTeam={handleUpdateTeam}
+                onUpdatePlayers={handleUpdateTeamPlayers}
                 onDeleteTeam={handleDeleteTeam}
                 onClearTeams={handleClearTeams}
                 onLoadDemoTeams={handleLoadDemoTeams}
@@ -1011,6 +1097,7 @@ export default function App() {
             >
               <BracketTab
                 matches={matches}
+                teams={teams}
                 isAdmin={isAdmin}
                 quarterFinalsMode={quarterFinalsMode}
                 onOpenScoreModal={(m) => setEditingMatchForScore(m)}
@@ -1067,11 +1154,73 @@ export default function App() {
         </AnimatePresence>
       </main>
 
+      {/* Page Bottom Footer with Official Logos Side by Side and Powered By */}
+      <footer
+        id="app-bottom-logos-footer"
+        className="border-t border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md py-8 px-4 mt-12"
+      >
+        <div className="max-w-7xl mx-auto flex flex-col items-center justify-center gap-6">
+          {/* Main Organization Logos */}
+          <div className="flex flex-row items-center justify-center gap-6 sm:gap-12 flex-wrap">
+            {/* Logo 1: 90.100 Night */}
+            <div
+              id="footer-logo-90100-container"
+              className="flex items-center justify-center p-2 rounded-2xl bg-black border border-zinc-800 shadow-md"
+            >
+              <img
+                id="footer-logo-90100"
+                src={logo90100Night}
+                alt="90.100 Night"
+                referrerPolicy="no-referrer"
+                className="w-24 h-24 sm:w-28 sm:h-28 object-contain"
+              />
+            </div>
+
+            {/* Logo 2: A.S.D. Volley Partinico */}
+            <div
+              id="footer-logo-partinico-container"
+              className="flex items-center justify-center p-2 rounded-2xl bg-white border border-zinc-200 shadow-md"
+            >
+              <img
+                id="footer-logo-partinico"
+                src={logoVolleyPartinico}
+                alt="A.S.D. Volley Partinico"
+                referrerPolicy="no-referrer"
+                className="w-24 h-24 sm:w-28 sm:h-28 object-contain"
+              />
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="w-16 h-px bg-zinc-800/80" />
+
+          {/* Powered By Contrera */}
+          <div id="footer-powered-by-section" className="flex flex-col items-center justify-center gap-2">
+            <span className="text-[11px] font-semibold tracking-widest uppercase text-slate-400">
+              powered by
+            </span>
+            <div
+              id="footer-logo-contrera-container"
+              className="flex items-center justify-center p-2 rounded-2xl bg-black border border-zinc-800 shadow-md"
+            >
+              <img
+                id="footer-logo-contrera"
+                src={logoContrera}
+                alt="CONTRERA"
+                referrerPolicy="no-referrer"
+                className="w-28 h-28 sm:w-32 sm:h-32 object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      </footer>
+
       {/* Match Score & Time Management Modal */}
       {editingMatchForScore && (
         <MatchScoreModal
           match={editingMatchForScore}
           allMatches={matches}
+          teams={teams}
           onClose={() => setEditingMatchForScore(null)}
           onSaveScore={handleSaveMatchScore}
           onBatchUpdateMatches={handleBatchUpdateMatches}
