@@ -28,11 +28,13 @@ import {
   computeClassificaAvulsa,
   generateKnockoutMatches,
   recalculateTournamentMatchTimes,
+  getQfParameters,
   parseTimeToMinutes,
   formatMinutesToTime,
   autoResolveAndPropagate,
   simulateAllGroupMatches,
   simulateKnockoutRound,
+  normalizeCourtName,
 } from './utils';
 
 import TeamsTab from './components/TeamsTab';
@@ -94,6 +96,7 @@ export default function App() {
 
   // In-app Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const recentToastsRef = React.useRef<Map<string, number>>(new Map());
 
   // In-app Reset Tournament confirmation modal
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -103,14 +106,36 @@ export default function App() {
     type: 'success' | 'error' | 'info' | 'warning' = 'info',
     title?: string
   ) => {
+    const cleanMsg = (message || '').trim();
+    if (!cleanMsg) return;
+
+    const dedupeKey = `${title || ''}::${cleanMsg}`;
+    const now = Date.now();
+    const lastShown = recentToastsRef.current.get(dedupeKey);
+
+    // Suppress identical duplicate toasts triggered within 2.5 seconds
+    if (lastShown && now - lastShown < 2500) {
+      return;
+    }
+    recentToastsRef.current.set(dedupeKey, now);
+
     const newToast: ToastMessage = {
-      id: `toast_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      id: `toast_${now}_${Math.random().toString(36).substring(2, 6)}`,
       title,
-      message,
+      message: cleanMsg,
       type,
-      duration: 4000,
+      duration: 3500,
     };
-    setToasts((prev) => [...prev, newToast]);
+
+    setToasts((prev) => {
+      // Prevent duplicate already active in current queue
+      if (prev.some((t) => t.message === cleanMsg && t.title === title)) {
+        return prev;
+      }
+      // Cap at max 3 visible toasts to avoid clutter
+      const filtered = prev.length >= 3 ? prev.slice(-2) : prev;
+      return [...filtered, newToast];
+    });
   };
 
   const removeToast = (id: string) => {
@@ -121,15 +146,38 @@ export default function App() {
   useEffect(() => {
     const unsubTeams = onSnapshot(
       collection(db, 'teams'),
-      (snapshot) => {
+      async (snapshot) => {
         const list: Team[] = [];
         snapshot.forEach((doc) => {
           list.push(doc.data() as Team);
         });
-        setTeams(list);
+
+        // If Firestore has no teams or old demo placeholders, seed with the 15 official teams and rosters
+        const hasOldPlaceholderTeams = list.some((t) => t.name === 'Volley Spike Titans' || t.name === 'I Muri Insuperabili');
+        if (snapshot.empty || hasOldPlaceholderTeams) {
+          try {
+            const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
+            if (hasOldPlaceholderTeams) {
+              snapshot.docs.forEach((d) => batch.delete(d.ref));
+            }
+            DEMO_TEAMS.forEach((demo) => {
+              const teamObj = getInitialTeamStats(demo);
+              const ref = doc(db, 'teams', teamObj.id);
+              batch.set(ref, cleanObject(teamObj));
+            });
+            await batch.commit();
+          } catch (e) {
+            console.error('Error auto-syncing official teams:', e);
+          }
+        }
+
+        setTeams(list.length > 0 && !hasOldPlaceholderTeams ? list : DEMO_TEAMS.map((t) => getInitialTeamStats(t)));
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, 'teams');
+        setTeams(DEMO_TEAMS.map((t) => getInitialTeamStats(t)));
       }
     );
 
@@ -137,9 +185,35 @@ export default function App() {
       collection(db, 'matches'),
       (snapshot) => {
         const list: Match[] = [];
-        snapshot.forEach((doc) => {
-          list.push(doc.data() as Match);
+        const matchesToMigrate: Match[] = [];
+        snapshot.forEach((docSnap) => {
+          const m = docSnap.data() as Match;
+          const normalizedCourt = normalizeCourtName(m.court);
+          if (m.court !== normalizedCourt) {
+            const updated = { ...m, court: normalizedCourt };
+            list.push(updated);
+            matchesToMigrate.push(updated);
+          } else {
+            list.push(m);
+          }
         });
+
+        // Persist normalization to Firestore in background if any match was using old court name
+        if (matchesToMigrate.length > 0) {
+          try {
+            const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
+            matchesToMigrate.forEach((migrated) => {
+              const ref = doc(db, 'matches', migrated.id);
+              batch.set(ref, cleanObject(migrated));
+            });
+            batch.commit().catch((err) => console.error('Error auto-migrating match court names:', err));
+          } catch (e) {
+            console.error('Error batch updating match court names:', e);
+          }
+        }
+
         setMatches(list);
       },
       (error) => {
@@ -154,7 +228,11 @@ export default function App() {
         snapshot.forEach((doc) => {
           list.push(doc.data() as NotificationLog);
         });
-        list.sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+        list.sort((a, b) => {
+          const timeA = parseInt((a.id || '').split(/[-_]/).pop() || '0', 10);
+          const timeB = parseInt((b.id || '').split(/[-_]/).pop() || '0', 10);
+          return timeB - timeA;
+        });
         setNotifications(list);
       },
       (error) => {
@@ -176,6 +254,7 @@ export default function App() {
             durationSingleSetMinutes: cfg.durationSingleSetMinutes || 25,
             durationBestOf3Minutes: cfg.durationBestOf3Minutes || 50,
             quarterFinalsMode: cfg.quarterFinalsMode || 'single_set_25',
+            tournamentStarted: Boolean(cfg.tournamentStarted),
           }));
           if (cfg.quarterFinalsMode) {
             setQuarterFinalsMode(cfg.quarterFinalsMode);
@@ -282,6 +361,8 @@ export default function App() {
     };
     try {
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
       // 1. Update the team doc
       batch.set(doc(db, 'teams', id), cleanObject(updated));
 
@@ -331,6 +412,8 @@ export default function App() {
     const updated: Team = { ...existing, players };
     try {
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
       batch.set(doc(db, 'teams', teamId), cleanObject(updated));
 
       // Propagate players to matches
@@ -369,6 +452,8 @@ export default function App() {
   const handleClearTeams = async () => {
     try {
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
       const teamsSnap = await getDocs(collection(db, 'teams'));
       teamsSnap.forEach((d) => batch.delete(d.ref));
       const matchesSnap = await getDocs(collection(db, 'matches'));
@@ -383,13 +468,15 @@ export default function App() {
   const handleLoadDemoTeams = async () => {
     try {
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
       DEMO_TEAMS.forEach((demo) => {
         const teamObj = getInitialTeamStats(demo);
         const ref = doc(db, 'teams', teamObj.id);
         batch.set(ref, cleanObject(teamObj));
       });
       await batch.commit();
-      addToast('15 Squadre Demo caricate con successo!', 'success', 'Squadre Caricate');
+      addToast('15 Squadre Ufficiali e relativi Roster caricati con successo!', 'success', 'Squadre Caricate');
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'teams');
     }
@@ -413,6 +500,8 @@ export default function App() {
       );
 
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
 
       // Update teams with their assigned group
       Object.entries(groups).forEach(([gName, gTeams]) => {
@@ -431,6 +520,10 @@ export default function App() {
         batch.set(mRef, cleanObject(m));
       });
 
+      // Reset tournamentStarted flag on group generation
+      const cfgRef = doc(db, 'config', 'settings');
+      batch.set(cfgRef, cleanObject({ ...config, tournamentStarted: false }), { merge: true });
+
       // Add a notification log
       const notifRef = doc(db, 'notifications', `notif_groups_${Date.now()}`);
       batch.set(
@@ -439,17 +532,182 @@ export default function App() {
           id: `notif_groups_${Date.now()}`,
           title: 'Gironi FIPAV Generati 🏐',
           message:
-            'I 5 gironi da 3 squadre con criterio FIPAV a scorrimento e il calendario gare (set a 25 punti su Campo Palamelina) sono pronti!',
+            'I 5 gironi da 3 squadre sono stati composti. Trascina le squadre per personalizzare la composizione e avvia il torneo quando pronto!',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           type: 'system',
         })
       );
 
       await batch.commit();
-      addToast('I 5 gironi FIPAV e le 15 partite a set unico a 25 punti su Campo Palamelina sono stati generati!', 'success', 'Gironi Pronti');
+      setConfig((prev) => ({ ...prev, tournamentStarted: false }));
+      addToast('I 5 gironi sono stati composti! Puoi scambiare le squadre o cliccare "Inizia Torneo".', 'success', 'Gironi Pronti');
       setActiveTab('groups');
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'matches');
+    }
+  };
+
+  // Swap two teams between groups (Pre-tournament Drag & Drop)
+  const handleSwapTeams = async (team1Id: string, team2Id: string) => {
+    if (team1Id === team2Id) return;
+    const t1 = teams.find((t) => t.id === team1Id);
+    const t2 = teams.find((t) => t.id === team2Id);
+    if (!t1 || !t2) return;
+
+    if (config.tournamentStarted) {
+      addToast('Il torneo è già iniziato: i gironi sono bloccati.', 'warning', 'Gironi Bloccati');
+      return;
+    }
+
+    const group1 = t1.group || 'Girone A';
+    const group2 = t2.group || 'Girone B';
+
+    if (group1 === group2) {
+      return;
+    }
+
+    try {
+      const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
+      const updatedTeams = teams.map((t) => {
+        if (t.id === team1Id) return { ...t, group: group2 };
+        if (t.id === team2Id) return { ...t, group: group1 };
+        return t;
+      });
+
+      // Update team documents atomically
+      batch.set(doc(db, 'teams', team1Id), cleanObject({ ...t1, group: group2 }));
+      batch.set(doc(db, 'teams', team2Id), cleanObject({ ...t2, group: group1 }));
+
+      // Reconstruct groups and regenerate group matches
+      const groupMap: Record<string, Team[]> = {
+        'Girone A': [],
+        'Girone B': [],
+        'Girone C': [],
+        'Girone D': [],
+        'Girone E': [],
+      };
+      updatedTeams.forEach((t) => {
+        if (t.group && groupMap[t.group]) {
+          groupMap[t.group].push(t);
+        }
+      });
+
+      const newGroupMatches = generateGroupMatches(
+        groupMap,
+        config.startTime || '20:30',
+        1,
+        config.durationSingleSetMinutes || 25,
+        config.courtName || 'Campo Palamelina'
+      );
+
+      // Overwrite previous group matches in Firestore
+      const existingMatchesSnap = await getDocs(collection(db, 'matches'));
+      existingMatchesSnap.forEach((d) => {
+        const mData = d.data() as Match;
+        if (mData.phase === 'gironi' || (mData.groupName && mData.groupName.startsWith('Girone'))) {
+          batch.delete(d.ref);
+        }
+      });
+
+      newGroupMatches.forEach((m) => {
+        batch.set(doc(db, 'matches', m.id), cleanObject(m));
+      });
+
+      await batch.commit();
+      addToast(`Scambio completato: ${t1.name} (${group2}) ⇄ ${t2.name} (${group1})`, 'success', 'Squadre Scambiate');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'teams/swap');
+    }
+  };
+
+  // Rebalance all teams strictly 3 per group in Girone A, B, C, D, E
+  const handleRebalanceGroups = async () => {
+    try {
+      if (teams.length < 15) {
+        addToast('Sono necessarie 15 squadre per comporre i 5 gironi.', 'warning');
+        return;
+      }
+      const groupNames = ['Girone A', 'Girone B', 'Girone C', 'Girone D', 'Girone E'];
+      const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
+
+      const balancedTeams = teams.map((t, idx) => {
+        const targetGroup = groupNames[Math.floor(idx / 3)];
+        return { ...t, group: targetGroup };
+      });
+
+      balancedTeams.forEach((t) => {
+        batch.set(doc(db, 'teams', t.id), cleanObject(t));
+      });
+
+      const groupMap: Record<string, Team[]> = {
+        'Girone A': [],
+        'Girone B': [],
+        'Girone C': [],
+        'Girone D': [],
+        'Girone E': [],
+      };
+      balancedTeams.forEach((t) => {
+        if (t.group && groupMap[t.group]) {
+          groupMap[t.group].push(t);
+        }
+      });
+
+      const newGroupMatches = generateGroupMatches(
+        groupMap,
+        config.startTime || '20:30',
+        1,
+        config.durationSingleSetMinutes || 25,
+        config.courtName || 'Campo Palamelina'
+      );
+
+      const existingMatchesSnap = await getDocs(collection(db, 'matches'));
+      existingMatchesSnap.forEach((d) => {
+        const mData = d.data() as Match;
+        if (mData.phase === 'gironi' || (mData.groupName && mData.groupName.startsWith('Girone'))) {
+          batch.delete(d.ref);
+        }
+      });
+
+      newGroupMatches.forEach((m) => {
+        batch.set(doc(db, 'matches', m.id), cleanObject(m));
+      });
+
+      await batch.commit();
+      addToast('Gironi perfettamente ribilanciati a 3 squadre per girone!', 'success', 'Gironi Ribilanciati');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'teams/rebalance');
+    }
+  };
+
+  // Start Tournament Handler (Locks groups permanently)
+  const handleStartTournament = async () => {
+    try {
+      const batch = writeBatch(db);
+
+      const updatedConfig = { ...config, tournamentStarted: true };
+      batch.set(doc(db, 'config', 'settings'), cleanObject(updatedConfig), { merge: true });
+
+      const notifRef = doc(db, 'notifications', `notif_start_${Date.now()}`);
+      batch.set(
+        notifRef,
+        cleanObject({
+          id: `notif_start_${Date.now()}`,
+          title: 'Torneo Ufficialmente Iniziato! 🏐',
+          message: 'I gironi sono stati bloccati. Il calendario delle 15 partite e le classifiche dei gironi sono ora attive!',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: 'live_update',
+        })
+      );
+
+      await batch.commit();
+      setConfig((prev) => ({ ...prev, tournamentStarted: true }));
+      addToast('Torneo iniziato! I gironi sono stati bloccati e le classifiche sono attive.', 'success', 'Torneo Avviato');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'config/settings');
     }
   };
 
@@ -474,14 +732,25 @@ export default function App() {
       const knockoutMatches = generateKnockoutMatches(
         rankedTeams,
         config.quarterFinalsMode || quarterFinalsMode,
-        formatMinutesToTime(startKnockoutMinutes),
+        config.startTime || '20:30',
         1,
         config.durationSingleSetMinutes || 25,
         config.durationBestOf3Minutes || 50,
-        config.courtName || 'Campo Palamelina'
+        config.courtName || 'Campo Palamelina',
+        config.durationBestOf3_15Minutes || 35,
+        undefined
       );
 
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+      batch.update(configRef, { quarterFinalsStartTime: '' });
+      setConfig((prev) => ({ ...prev, quarterFinalsStartTime: '' }));
+
+      // Remove obsolete 3rd place final if it exists
+      const oldF34 = matches.find((m) => m.id === 'm-fin-3-4');
+      if (oldF34) {
+        batch.delete(doc(db, 'matches', 'm-fin-3-4'));
+      }
       knockoutMatches.forEach((m) => {
         const mRef = doc(db, 'matches', m.id);
         batch.set(mRef, cleanObject(m));
@@ -513,6 +782,8 @@ export default function App() {
     try {
       const simulated = simulateAllGroupMatches(matches);
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
       simulated.forEach((m) => {
         const mRef = doc(db, 'matches', m.id);
         batch.set(mRef, cleanObject(m));
@@ -529,6 +800,8 @@ export default function App() {
     try {
       const simulated = simulateKnockoutRound(matches);
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
       simulated.forEach((m) => {
         const mRef = doc(db, 'matches', m.id);
         batch.set(mRef, cleanObject(m));
@@ -544,6 +817,8 @@ export default function App() {
   const handleBatchUpdateMatches = async (updatedMatches: Match[]) => {
     try {
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
       updatedMatches.forEach((m) => {
         const mRef = doc(db, 'matches', m.id);
         batch.set(mRef, cleanObject(m));
@@ -570,6 +845,8 @@ export default function App() {
       const fullyResolved = autoResolveAndPropagate(updatedMatches);
 
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
       fullyResolved.forEach((m) => {
         const mRef = doc(db, 'matches', m.id);
         batch.set(mRef, cleanObject(m));
@@ -611,9 +888,16 @@ export default function App() {
   const handleUpdateQuarterFinalsMode = async (mode: QuarterFinalsMode) => {
     try {
       setQuarterFinalsMode(mode);
-      const isBestOf3 = mode === 'best_of_3_tb15';
+      const qfParams = getQfParameters(
+        mode,
+        config.durationSingleSetMinutes || 25,
+        config.durationBestOf3Minutes || 50,
+        config.durationBestOf3_15Minutes || 35
+      );
 
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
       const cfgRef = doc(db, 'config', 'settings');
       batch.set(cfgRef, cleanObject({ quarterFinalsMode: mode }), { merge: true });
 
@@ -626,15 +910,16 @@ export default function App() {
             mRef,
             cleanObject({
               ...m,
-              maxSets: isBestOf3 ? 3 : 1,
-              tieBreakPoints: isBestOf3 ? 15 : 25,
+              maxSets: qfParams.maxSets,
+              pointsPerSet: qfParams.pointsPerSet,
+              tieBreakPoints: qfParams.tieBreakPoints,
             })
           );
         });
 
       await batch.commit();
       addToast(
-        `Formula Quarti di Finale impostata su: ${isBestOf3 ? '2 su 3 (TB a 15)' : 'Set Unico a 25'}`,
+        `Formula Quarti di Finale impostata su: ${qfParams.label}`,
         'success',
         'Formula Aggiornata'
       );
@@ -661,7 +946,9 @@ export default function App() {
     durationSingleSet: number,
     durationBestOf3: number,
     courtName: string,
-    qfMode: QuarterFinalsMode
+    qfMode: QuarterFinalsMode,
+    durationBestOf3_15: number = 35,
+    quarterFinalsStartTime?: string
   ) => {
     try {
       const updated = recalculateTournamentMatchTimes(
@@ -670,9 +957,18 @@ export default function App() {
         durationSingleSet,
         durationBestOf3,
         courtName,
-        qfMode
+        qfMode,
+        durationBestOf3_15,
+        quarterFinalsStartTime
       );
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
+      // Delete obsolete 3rd place final match from database if present
+      const oldF34 = matches.find((m) => m.id === 'm-fin-3-4');
+      if (oldF34) {
+        batch.delete(doc(db, 'matches', 'm-fin-3-4'));
+      }
       updated.forEach((m) => {
         const ref = doc(db, 'matches', m.id);
         batch.set(ref, cleanObject(m));
@@ -683,8 +979,10 @@ export default function App() {
         cfgRef,
         cleanObject({
           startTime,
+          quarterFinalsStartTime,
           durationSingleSetMinutes: durationSingleSet,
           durationBestOf3Minutes: durationBestOf3,
+          durationBestOf3_15Minutes: durationBestOf3_15,
           courtName,
           courtCount: 1,
           quarterFinalsMode: qfMode,
@@ -713,6 +1011,8 @@ export default function App() {
     try {
       const snap = await getDocs(collection(db, 'notifications'));
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
       snap.forEach((d) => batch.delete(d.ref));
       await batch.commit();
       addToast('Bacheca notifiche svuotata.', 'info', 'Bacheca Pulita');
@@ -757,6 +1057,8 @@ export default function App() {
   const handleRestoreBackup = async (backup: TournamentBackup) => {
     try {
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
 
       // 1. Delete and overwrite teams
       const teamsSnap = await getDocs(collection(db, 'teams'));
@@ -833,6 +1135,8 @@ export default function App() {
   const handleResetTournament = async () => {
     try {
       const batch = writeBatch(db);
+      const configRef = doc(db, 'config', 'settings');
+
       const teamsSnap = await getDocs(collection(db, 'teams'));
       teamsSnap.forEach((d) => batch.delete(d.ref));
       const matchesSnap = await getDocs(collection(db, 'matches'));
@@ -846,6 +1150,32 @@ export default function App() {
       handleFirestoreError(err, OperationType.DELETE, 'all');
     }
   };
+
+  const hasGroupsGenerated = matches.some((m) => m.phase === 'gironi') || teams.some((t) => !!t.group);
+  const hasBracketGenerated = matches.some((m) => m.phase === 'eliminazione' || m.round >= 2);
+  const isTournamentStarted = Boolean(config.tournamentStarted);
+
+  // Tab visibility rules:
+  // - Tab Gironi: visible only to admin until "Inizia Torneo" is clicked; then visible to everyone.
+  // - Tabellone Finale: visible only to admin until generated; then visible to everyone.
+  const isGroupsTabVisible = isAdmin || isTournamentStarted;
+  const isBracketTabVisible = isAdmin || hasBracketGenerated;
+  const isAvulsaTabVisible = isAdmin || isTournamentStarted;
+
+  // Auto-redirect if non-admin is currently on a tab that is not yet visible/accessible
+  useEffect(() => {
+    if (!isAdmin) {
+      if (activeTab === 'settings') {
+        setActiveTab('teams');
+      } else if (activeTab === 'groups' && !isTournamentStarted) {
+        setActiveTab('teams');
+      } else if (activeTab === 'bracket' && !hasBracketGenerated) {
+        setActiveTab(isTournamentStarted ? 'groups' : 'teams');
+      } else if (activeTab === 'avulsa' && !isTournamentStarted) {
+        setActiveTab('teams');
+      }
+    }
+  }, [isAdmin, isTournamentStarted, hasBracketGenerated, activeTab]);
 
   return (
     <div className="min-h-screen bg-black text-slate-100 selection:bg-amber-500 selection:text-slate-950">
@@ -940,44 +1270,88 @@ export default function App() {
               </span>
             </button>
 
-            <button
-              id="tab-btn-groups"
-              onClick={() => setActiveTab('groups')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-2 ${
-                activeTab === 'groups'
-                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-zinc-900'
-              }`}
-            >
-              <Layers className="w-4 h-4" />
-              <span>Gironi (5 da 3)</span>
-            </button>
+            {isGroupsTabVisible && (
+              <button
+                id="tab-btn-groups"
+                onClick={() => {
+                  if (!hasGroupsGenerated) {
+                    addToast('I gironi saranno sbloccati non appena verranno generati dalla scheda "Squadre".', 'info', 'Gironi Bloccati');
+                    return;
+                  }
+                  setActiveTab('groups');
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-2 ${
+                  !hasGroupsGenerated
+                    ? 'opacity-40 text-slate-500 cursor-not-allowed hover:text-slate-400'
+                    : activeTab === 'groups'
+                    ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20 cursor-pointer'
+                    : 'text-slate-400 hover:text-white hover:bg-zinc-900 cursor-pointer'
+                }`}
+                title={
+                  !hasGroupsGenerated
+                    ? 'Gironi bloccati fino alla generazione'
+                    : !isTournamentStarted
+                    ? 'Gironi (Configurazione Pre-Torneo • Solo Admin)'
+                    : 'Gironi (5 da 3)'
+                }
+              >
+                {!hasGroupsGenerated ? <Lock className="w-3.5 h-3.5" /> : <Layers className="w-4 h-4" />}
+                <span>Gironi (5 da 3)</span>
+                {!isTournamentStarted && isAdmin && (
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-semibold">
+                    Admin
+                  </span>
+                )}
+              </button>
+            )}
 
-            <button
-              id="tab-btn-avulsa"
-              onClick={() => setActiveTab('avulsa')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-2 ${
-                activeTab === 'avulsa'
-                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-zinc-900'
-              }`}
-            >
-              <Trophy className="w-4 h-4" />
-              <span>Classifica Avulsa</span>
-            </button>
+            {isAvulsaTabVisible && (
+              <button
+                id="tab-btn-avulsa"
+                onClick={() => setActiveTab('avulsa')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-2 ${
+                  activeTab === 'avulsa'
+                    ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-zinc-900'
+                }`}
+              >
+                <Trophy className="w-4 h-4" />
+                <span>Classifica Avulsa</span>
+              </button>
+            )}
 
-            <button
-              id="tab-btn-bracket"
-              onClick={() => setActiveTab('bracket')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-2 ${
-                activeTab === 'bracket'
-                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-zinc-900'
-              }`}
-            >
-              <GitBranch className="w-4 h-4" />
-              <span>Tabellone Finale</span>
-            </button>
+            {isBracketTabVisible && (
+              <button
+                id="tab-btn-bracket"
+                onClick={() => {
+                  if (!hasBracketGenerated) {
+                    addToast(
+                      'Il Tabellone Finale sarà sbloccato non appena verrà generato dalla classifica avulsa.',
+                      'info',
+                      'Tabellone Bloccato'
+                    );
+                    return;
+                  }
+                  setActiveTab('bracket');
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-2 ${
+                  !hasBracketGenerated
+                    ? 'opacity-40 text-slate-500 cursor-not-allowed hover:text-slate-400'
+                    : activeTab === 'bracket'
+                    ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20 cursor-pointer'
+                    : 'text-slate-400 hover:text-white hover:bg-zinc-900 cursor-pointer'
+                }`}
+                title={!hasBracketGenerated ? 'Tabellone Finale bloccato fino alla generazione' : 'Tabellone Finale'}
+              >
+                {!hasBracketGenerated ? <Lock className="w-3.5 h-3.5" /> : <GitBranch className="w-4 h-4" />}
+                <span>Tabellone Finale</span>
+                {!hasBracketGenerated && isAdmin && (
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-semibold">
+                    Admin
+                  </span>
+                )}
+              </button>
+            )}
 
             <button
               id="tab-btn-notifications"
@@ -1060,10 +1434,15 @@ export default function App() {
                 teams={teams}
                 matches={matches}
                 isAdmin={isAdmin}
+                isTournamentStarted={Boolean(config.tournamentStarted)}
+                onStartTournament={handleStartTournament}
+                onSwapTeams={handleSwapTeams}
+                onRebalanceGroups={handleRebalanceGroups}
                 onOpenScoreModal={(m) => setEditingMatchForScore(m)}
                 onNavigateToAvulsa={() => setActiveTab('avulsa')}
                 onGenerateKnockout={handleGenerateKnockout}
                 onSimulateGroupMatches={handleSimulateGroupMatches}
+                onBatchUpdateMatches={handleBatchUpdateMatches}
                 onShowToast={addToast}
               />
             </motion.div>
@@ -1104,6 +1483,7 @@ export default function App() {
                 onUpdateQuarterFinalsMode={handleUpdateQuarterFinalsMode}
                 onGenerateKnockout={handleGenerateKnockout}
                 onSimulateKnockoutRound={handleSimulateKnockoutRound}
+                onBatchUpdateMatches={handleBatchUpdateMatches}
                 onShowToast={addToast}
               />
             </motion.div>

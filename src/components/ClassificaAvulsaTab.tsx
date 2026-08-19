@@ -114,45 +114,6 @@ export default function ClassificaAvulsaTab({
 
   return (
     <div id="classifica-avulsa-container" className="space-y-8 max-w-6xl mx-auto">
-      {/* Header Card */}
-      <div id="avulsa-header-card" className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
-              <Trophy className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">Classifica Avulsa Generale (1° - 15°)</h2>
-              <p className="text-sm text-slate-400">
-                Graduatoria unificata post-gironi per la determinazione del seeding e degli accoppiamenti
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {isAdmin && (
-            <button
-              id="rebuild-knockout-btn"
-              onClick={onGenerateKnockout}
-              className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-bold rounded-xl border border-slate-700 flex items-center gap-2 transition cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4" />
-              Rigenera Tabellone Finale
-            </button>
-          )}
-
-          <button
-            id="go-to-bracket-tab-btn"
-            onClick={onNavigateToBracket}
-            className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-bold rounded-xl shadow-lg shadow-amber-500/20 flex items-center gap-2 transition cursor-pointer"
-          >
-            <span>Visualizza Tabellone</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
       {/* 1st Place Golden Banner */}
       {rankedTeams.length > 0 && (
         <div id="first-place-bye-banner" className="bg-gradient-to-r from-amber-500/20 via-amber-600/10 to-slate-900 border border-amber-500/30 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
@@ -162,7 +123,7 @@ export default function ClassificaAvulsaTab({
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] sm:text-xs uppercase tracking-wider text-amber-400 font-bold">1ª Classificata nel Torneo</span>
+                <span className="text-[10px] sm:text-xs uppercase tracking-wider text-amber-400 font-bold">1a CLASSIFICATA NELLA FASE A GIRONI</span>
                 <span className="text-[10px] sm:text-xs bg-amber-500/30 text-amber-200 px-2 py-0.5 rounded font-bold">BYE DIRETTO AI QUARTI</span>
               </div>
               <h3 className="text-base sm:text-xl font-bold text-white mt-0.5 leading-tight break-words">{getTeamName(rankedTeams[0])}</h3>
@@ -184,7 +145,7 @@ export default function ClassificaAvulsaTab({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
             <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-            <span>Tabella Graduatoria Completa (Art. 43 FIPAV)</span>
+            <span>Classifica Avulsa</span>
           </h3>
           <span className="text-[10px] text-slate-400 sm:hidden italic">
             ↔ Scorri per visualizzare tutti i coefficienti
@@ -201,7 +162,7 @@ export default function ClassificaAvulsaTab({
                 <th className="py-2.5 px-1.5 sm:px-3 text-center">Pos. Gir</th>
                 <th className="py-2.5 px-1.5 sm:px-3 text-center font-bold text-amber-400">Pti (G)</th>
                 <th className="py-2.5 px-1.5 sm:px-3 text-center">Q. Pti/G</th>
-                <th className="py-2.5 px-1.5 sm:px-3 text-center">V - P</th>
+                <th className="py-2.5 px-1.5 sm:px-3 text-center">V-P</th>
                 <th className="py-2.5 px-1.5 sm:px-3 text-center">Q. Set</th>
                 <th className="py-2.5 px-1.5 sm:px-3 text-center">Q. Pti</th>
                 <th className="py-2.5 px-1.5 sm:px-3 text-center">Diff</th>
@@ -256,7 +217,7 @@ export default function ClassificaAvulsaTab({
                       {qPtsGare}
                     </td>
                     <td className="py-2.5 px-1.5 sm:px-3 text-center text-slate-300 text-[11px] sm:text-xs whitespace-nowrap font-mono sm:font-sans">
-                      {team.wins} - {team.losses}
+                      {team.wins}-{team.losses}
                     </td>
                     <td className="py-2.5 px-1.5 sm:px-3 text-center font-mono text-[11px] sm:text-xs text-slate-300 whitespace-nowrap">
                       {qSet} <span className="text-[9px] sm:text-[10px] text-slate-500">({team.setsWon}/{team.setsLost})</span>

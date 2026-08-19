@@ -137,7 +137,7 @@ export default function NotificationCenter({
               <div className="space-y-2">
                 <button
                   type="button"
-                  onClick={() => loadTemplate('Riscaldamento Campo Centrale 🏐', 'Inizio riscaldamento ufficiale sul Campo Centrale. Squadre pronte!', 'live_update')}
+                  onClick={() => loadTemplate('Riscaldamento Campo Palamelina 🏐', 'Inizio riscaldamento ufficiale su Campo Palamelina. Squadre pronte!', 'live_update')}
                   className="w-full text-left p-2.5 bg-slate-800/60 hover:bg-slate-800 rounded-xl border border-slate-700/60 text-xs text-slate-300 transition"
                 >
                   🏐 Riscaldamento in corso

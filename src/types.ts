@@ -1,5 +1,5 @@
 export type TeamLevel = 'Base' | 'Intermedio' | 'Avanzato';
-export type PlayerLevel = 'Nazionale' | 'Regionale' | 'Provinciale' | 'CSI';
+export type PlayerLevel = 'Nazionale' | 'Regionale' | 'Provinciale' | 'CSI' | 'Non Tesserato';
 
 export interface Player {
   id: string;
@@ -69,7 +69,7 @@ export interface NotificationLog {
   matchId?: string;
 }
 
-export type QuarterFinalsMode = 'single_set_25' | 'best_of_3_tb15';
+export type QuarterFinalsMode = 'single_set_25' | 'best_of_3_25_tb15' | 'best_of_3_15' | 'best_of_3_tb15';
 
 export interface TournamentConfig {
   tournamentName?: string;
@@ -79,9 +79,12 @@ export interface TournamentConfig {
   courtCount: number;
   courtName?: string;
   startTime: string;
-  durationSingleSetMinutes: number;
-  durationBestOf3Minutes: number;
+  quarterFinalsStartTime?: string; // Orario inizio Quarti di finale
+  durationSingleSetMinutes: number; // Durata partita singolo match a 25 (minuti)
+  durationBestOf3Minutes: number; // Durata partita 2 set su 3 a 25 con tie break a 15 (minuti)
+  durationBestOf3_15Minutes?: number; // Durata partita 2 set su 3 a 15 (minuti)
   matchDurationMinutes?: number;
+  tournamentStarted?: boolean;
 }
 
 export interface TournamentBackup {

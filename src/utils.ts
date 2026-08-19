@@ -1,187 +1,244 @@
 import { Team, Match, SetScore, TeamLevel, QuarterFinalsMode } from './types';
 
-// 15 Default Demo Teams for Volleyball Tournament with sample rosters
+// 15 Official Teams for Volleyball Tournament with full rosters from official sheet
 export const DEMO_TEAMS: Omit<Team, 'wins' | 'losses' | 'setsWon' | 'setsLost' | 'pointsWon' | 'pointsLost' | 'points'>[] = [
   {
     id: 't1',
-    name: 'Volley Spike Titans',
-    level: 'Avanzato',
+    name: 'SMELBURN',
+    level: 'Base',
     registeredAt: '2026-08-21 19:00',
     createdAt: 1724266800000,
     players: [
-      { id: 'p1_1', name: 'Marco Rossi', level: 'Nazionale' },
-      { id: 'p1_2', name: 'Luca Bianchi', level: 'Nazionale' },
-      { id: 'p1_3', name: 'Davide Conti', level: 'Regionale' },
-      { id: 'p1_4', name: 'Alessandro Ferri', level: 'Regionale' },
+      { id: 'p1_1', name: 'Alessandro Martorana', level: 'Provinciale' },
+      { id: 'p1_2', name: 'Elisa Indoviglia', level: 'Provinciale' },
+      { id: 'p1_3', name: 'Matteo Augusta', level: 'Provinciale' },
+      { id: 'p1_4', name: 'Giovanni Giaconia', level: 'Provinciale' },
+      { id: 'p1_5', name: 'Riccardo Danneo', level: 'Provinciale' },
+      { id: 'p1_6', name: 'Ambra Di Maria', level: 'Provinciale' },
+      { id: 'p1_7', name: 'David Rotolo', level: 'Provinciale' },
+      { id: 'p1_8', name: 'Sara Renda', level: 'Provinciale' },
     ],
   },
   {
     id: 't2',
-    name: 'I Muri Insuperabili',
-    level: 'Avanzato',
+    name: 'FACILONI',
+    level: 'Intermedio',
     registeredAt: '2026-08-21 19:05',
     createdAt: 1724267100000,
     players: [
-      { id: 'p2_1', name: 'Giuseppe Moretti', level: 'Nazionale' },
-      { id: 'p2_2', name: 'Matteo Gatti', level: 'Regionale' },
-      { id: 'p2_3', name: 'Simone Galli', level: 'Regionale' },
-      { id: 'p2_4', name: 'Andrea Ricci', level: 'Provinciale' },
+      { id: 'p2_1', name: 'Alberto Cutugno', level: 'Regionale' },
+      { id: 'p2_2', name: 'Samuel Cusimano', level: 'Regionale' },
+      { id: 'p2_3', name: 'Carlotta Polizzi', level: 'Regionale' },
+      { id: 'p2_4', name: 'Federico Mazzola', level: 'Provinciale' },
+      { id: 'p2_5', name: 'Marta Mucera', level: 'Regionale' },
+      { id: 'p2_6', name: 'Alessio Felli', level: 'Regionale' },
+      { id: 'p2_7', name: 'Giorgio Mancuso', level: 'Provinciale' },
     ],
   },
   {
     id: 't3',
-    name: 'Ace Attackers',
-    level: 'Avanzato',
+    name: 'VIS COPPIAMO',
+    level: 'Base',
     registeredAt: '2026-08-21 19:10',
     createdAt: 1724267400000,
     players: [
-      { id: 'p3_1', name: 'Lorenzo Russo', level: 'Nazionale' },
-      { id: 'p3_2', name: 'Federico Villa', level: 'Regionale' },
-      { id: 'p3_3', name: 'Gabriele Leone', level: 'Regionale' },
+      { id: 'p3_1', name: 'Sofia Segreto', level: 'Regionale' },
+      { id: 'p3_2', name: 'Salvo Badagliacca', level: 'Provinciale' },
+      { id: 'p3_3', name: 'Edoardo Munda', level: 'Regionale' },
+      { id: 'p3_4', name: 'Veronica Cracolici', level: 'Regionale' },
+      { id: 'p3_5', name: 'Emanuele Franchina', level: 'Regionale' },
+      { id: 'p3_6', name: 'Adriano Matteoli', level: 'Regionale' },
+      { id: 'p3_7', name: 'Marta Leone', level: 'Regionale' },
     ],
   },
   {
     id: 't4',
-    name: 'Sky Jumpers',
+    name: 'I NOTTAMBULI',
     level: 'Avanzato',
     registeredAt: '2026-08-21 19:15',
     createdAt: 1724267700000,
     players: [
-      { id: 'p4_1', name: 'Christian Rinaldi', level: 'Regionale' },
-      { id: 'p4_2', name: 'Paolo Fontana', level: 'Regionale' },
-      { id: 'p4_3', name: 'Emanuele Greco', level: 'Provinciale' },
+      { id: 'p4_1', name: 'Antonio Domino', level: 'Regionale' },
+      { id: 'p4_2', name: 'Davide Filippone', level: 'Regionale' },
+      { id: 'p4_3', name: 'Dafne Cangemi', level: 'Regionale' },
+      { id: 'p4_4', name: 'Francesco Rizzello', level: 'Regionale' },
+      { id: 'p4_5', name: 'Alex Mazzucco', level: 'Regionale' },
+      { id: 'p4_6', name: 'Matteo Tusa', level: 'Regionale' },
+      { id: 'p4_7', name: 'Irene Lupo', level: 'Provinciale' },
     ],
   },
   {
     id: 't5',
-    name: 'Thunder Volley',
+    name: 'VOLANO MA...DONNE',
     level: 'Avanzato',
     registeredAt: '2026-08-21 19:20',
     createdAt: 1724268000000,
     players: [
-      { id: 'p5_1', name: 'Tommaso Barbieri', level: 'Regionale' },
-      { id: 'p5_2', name: 'Stefano Marini', level: 'Regionale' },
-      { id: 'p5_3', name: 'Filippo De Luca', level: 'Provinciale' },
+      { id: 'p5_1', name: 'Francesco Sutera', level: 'CSI' },
+      { id: 'p5_2', name: 'Gabriele Pizzurro', level: 'CSI' },
+      { id: 'p5_3', name: 'Leonardo Inghilleri', level: 'CSI' },
+      { id: 'p5_4', name: 'Andrea Filloramo', level: 'Nazionale' },
+      { id: 'p5_5', name: 'Valentina Tutone', level: 'Nazionale' },
+      { id: 'p5_6', name: 'Giorgia Vizzini', level: 'CSI' },
+      { id: 'p5_7', name: 'Fabiola Esposito', level: 'CSI' },
     ],
   },
   {
     id: 't6',
-    name: 'Monster Blockers',
-    level: 'Intermedio',
+    name: 'GLI ALANI',
+    level: 'Avanzato',
     registeredAt: '2026-08-21 19:25',
     createdAt: 1724268300000,
     players: [
-      { id: 'p6_1', name: 'Daniele Costa', level: 'Regionale' },
-      { id: 'p6_2', name: 'Michele Serra', level: 'Provinciale' },
-      { id: 'p6_3', name: 'Roberto Romano', level: 'CSI' },
+      { id: 'p6_1', name: 'Mario Puleo', level: 'Regionale' },
+      { id: 'p6_2', name: 'Margherita Scarpinato', level: 'Regionale' },
+      { id: 'p6_3', name: 'Giorgio Piraino', level: 'Regionale' },
+      { id: 'p6_4', name: 'Antonino Frascati', level: 'Regionale' },
+      { id: 'p6_5', name: 'Federica Martorana', level: 'Regionale' },
+      { id: 'p6_6', name: 'Giuseppe Grotte', level: 'Regionale' },
+      { id: 'p6_7', name: 'Simona Incandela', level: 'Regionale' },
     ],
   },
   {
     id: 't7',
-    name: 'Sideout Kings',
+    name: 'AURA DI SONNO',
     level: 'Intermedio',
     registeredAt: '2026-08-21 19:30',
     createdAt: 1724268600000,
     players: [
-      { id: 'p7_1', name: 'Fabio Monti', level: 'Provinciale' },
-      { id: 'p7_2', name: 'Nicola Vitale', level: 'Provinciale' },
-      { id: 'p7_3', name: 'Claudio Lombardi', level: 'CSI' },
+      { id: 'p7_1', name: 'Gaspare Portuesi', level: 'Regionale' },
+      { id: 'p7_2', name: 'Federita Giambona', level: 'Nazionale' },
+      { id: 'p7_3', name: 'Michela Mulia', level: 'Nazionale' },
+      { id: 'p7_4', name: 'Gabriele Mirabella', level: 'Nazionale' },
+      { id: 'p7_5', name: 'Noemi Romano', level: 'Regionale' },
+      { id: 'p7_6', name: 'Salvatore Giuliano', level: 'Regionale' },
+      { id: 'p7_7', name: 'Federica Bruno', level: 'Nazionale' },
     ],
   },
   {
     id: 't8',
-    name: "Bagher d'Acciaio",
-    level: 'Intermedio',
+    name: 'TEAM POLPETTO',
+    level: 'Base',
     registeredAt: '2026-08-21 19:35',
     createdAt: 1724268900000,
     players: [
-      { id: 'p8_1', name: 'Giovanni Carbone', level: 'Regionale' },
-      { id: 'p8_2', name: 'Vincenzo Riva', level: 'Provinciale' },
-      { id: 'p8_3', name: 'Pietro Mariani', level: 'CSI' },
+      { id: 'p8_1', name: 'Carlo Scalici', level: 'Regionale' },
+      { id: 'p8_2', name: 'Giuseppe Scalici', level: 'Regionale' },
+      { id: 'p8_3', name: 'Eleonora Caruso', level: 'Regionale' },
+      { id: 'p8_4', name: 'Miriam Lo Piccolo', level: 'Regionale' },
+      { id: 'p8_5', name: 'Silvia Muratore', level: 'Regionale' },
+      { id: 'p8_6', name: 'Andrea Fumoso', level: 'Regionale' },
+      { id: 'p8_7', name: 'Salvo Geraci', level: 'Regionale' },
     ],
   },
   {
     id: 't9',
-    name: 'Schiacciatori Notturni',
+    name: "CREPI L'AVARIZIA",
     level: 'Intermedio',
     registeredAt: '2026-08-21 19:40',
     createdAt: 1724269200000,
     players: [
-      { id: 'p9_1', name: 'Enrico Parisi', level: 'Provinciale' },
-      { id: 'p9_2', name: 'Valerio Grassi', level: 'Provinciale' },
-      { id: 'p9_3', name: 'Manuel Pellegrini', level: 'CSI' },
+      { id: 'p9_1', name: 'Marta Pedalino', level: 'Regionale' },
+      { id: 'p9_2', name: 'Marco Provenza', level: 'Regionale' },
+      { id: 'p9_3', name: 'Carlo Di Stefano', level: 'Regionale' },
+      { id: 'p9_4', name: 'Cristian Bonetti', level: 'Non Tesserato' },
+      { id: 'p9_5', name: 'Marco Lequaglie', level: 'Regionale' },
+      { id: 'p9_6', name: 'Giada Gambino', level: 'Provinciale' },
+      { id: 'p9_7', name: 'Marilena Schiattone', level: 'Regionale' },
     ],
   },
   {
     id: 't10',
-    name: 'Volley Smashers',
-    level: 'Intermedio',
+    name: 'I PALLALCOLISTI',
+    level: 'Avanzato',
     registeredAt: '2026-08-21 19:45',
     createdAt: 1724269500000,
     players: [
-      { id: 'p10_1', name: 'Giacomo Ferretti', level: 'Provinciale' },
-      { id: 'p10_2', name: 'Alessio Valentini', level: 'CSI' },
-      { id: 'p10_3', name: 'Samuele Palumbo', level: 'CSI' },
+      { id: 'p10_1', name: 'Giuseppe Carrabino', level: 'Regionale' },
+      { id: 'p10_2', name: 'Andrea Sicilia', level: 'Nazionale' },
+      { id: 'p10_3', name: 'Riccardo Smeraldo', level: 'Nazionale' },
+      { id: 'p10_4', name: 'Dario Valenza', level: 'Regionale' },
+      { id: 'p10_5', name: 'Mirco Morana', level: 'Regionale' },
+      { id: 'p10_6', name: 'Alessia Morreale', level: 'Non Tesserato' },
+      { id: 'p10_7', name: 'Sofia Senapa', level: 'Non Tesserato' },
     ],
   },
   {
     id: 't11',
-    name: 'Fast Setters',
-    level: 'Base',
+    name: 'INNANZITUTTO BUONASERA',
+    level: 'Intermedio',
     registeredAt: '2026-08-21 19:50',
     createdAt: 1724269800000,
     players: [
-      { id: 'p11_1', name: 'Edoardo Mazza', level: 'Provinciale' },
-      { id: 'p11_2', name: 'Jacopo Basile', level: 'CSI' },
-      { id: 'p11_3', name: 'Riccardo Neri', level: 'CSI' },
+      { id: 'p11_1', name: 'Giorgio Longo', level: 'Provinciale' },
+      { id: 'p11_2', name: 'Ettore Giangreco', level: 'Regionale' },
+      { id: 'p11_3', name: 'Giorgia Catalano', level: 'Non Tesserato' },
+      { id: 'p11_4', name: 'Giuseppe Badalamenti', level: 'Non Tesserato' },
+      { id: 'p11_5', name: 'Elisa Curcio', level: 'Regionale' },
+      { id: 'p11_6', name: 'Leonardo Ferrera', level: 'Provinciale' },
+      { id: 'p11_7', name: 'Giada Cosentino', level: 'Regionale' },
     ],
   },
   {
     id: 't12',
-    name: 'Palleggiatori Selvaggi',
+    name: 'MUGIWARA VOLLEY',
     level: 'Base',
     registeredAt: '2026-08-21 19:55',
     createdAt: 1724270100000,
     players: [
-      { id: 'p12_1', name: 'Leonardo Silvestri', level: 'CSI' },
-      { id: 'p12_2', name: 'Massimo Testa', level: 'CSI' },
-      { id: 'p12_3', name: 'Fabrizio Grasso', level: 'CSI' },
+      { id: 'p12_1', name: 'Alessio Cacioppo', level: 'CSI' },
+      { id: 'p12_2', name: 'Marta Magnolia', level: 'Provinciale' },
+      { id: 'p12_3', name: 'Giovanni Matranga', level: 'Provinciale' },
+      { id: 'p12_4', name: 'Emanuele Ciampallari', level: 'CSI' },
+      { id: 'p12_5', name: 'Davide Perdichizzi', level: 'Provinciale' },
+      { id: 'p12_6', name: 'Giulia Merulla', level: 'CSI' },
+      { id: 'p12_7', name: 'Davide Biscardi', level: 'Provinciale' },
     ],
   },
   {
     id: 't13',
-    name: 'Difesa Totale',
-    level: 'Base',
+    name: 'FRITTURINA MISTA',
+    level: 'Avanzato',
     registeredAt: '2026-08-21 20:00',
     createdAt: 1724270400000,
     players: [
-      { id: 'p13_1', name: 'Alberto D’Amico', level: 'CSI' },
-      { id: 'p13_2', name: 'Giorgio Coppola', level: 'CSI' },
-      { id: 'p13_3', name: 'Bruno Marchetti', level: 'CSI' },
+      { id: 'p13_1', name: 'Francesco La Malfa', level: 'Regionale' },
+      { id: 'p13_2', name: 'Davide Di Maria', level: 'Regionale' },
+      { id: 'p13_3', name: 'Angelica Di Maria', level: 'Regionale' },
+      { id: 'p13_4', name: 'Giulia Maddalena', level: 'Regionale' },
+      { id: 'p13_5', name: 'Gloria Senapa', level: 'Nazionale' },
+      { id: 'p13_6', name: 'Ettore Di Maria', level: 'Regionale' },
+      { id: 'p13_7', name: 'Matteo Rivas', level: 'Regionale' },
     ],
   },
   {
     id: 't14',
-    name: 'Night Volley Express',
+    name: 'GLI IMPROVVISATI',
     level: 'Base',
     registeredAt: '2026-08-21 20:05',
     createdAt: 1724270700000,
     players: [
-      { id: 'p14_1', name: 'Diego Santoro', level: 'CSI' },
-      { id: 'p14_2', name: 'Vito Rizzo', level: 'CSI' },
-      { id: 'p14_3', name: 'Saverio Fiore', level: 'CSI' },
+      { id: 'p14_1', name: 'Salvo Contrera', level: 'Regionale' },
+      { id: 'p14_2', name: 'Marco Guccione', level: 'CSI' },
+      { id: 'p14_3', name: 'Emanuele Perinto', level: 'CSI' },
+      { id: 'p14_4', name: 'Karol De Lisi', level: 'Provinciale' },
+      { id: 'p14_5', name: 'Marilina Sclafani', level: 'CSI' },
     ],
   },
   {
     id: 't15',
-    name: 'Pallavolo Forever',
-    level: 'Base',
+    name: 'PER CASO',
+    level: 'Intermedio',
     registeredAt: '2026-08-21 20:10',
     createdAt: 1724271000000,
     players: [
-      { id: 'p15_1', name: 'Carmelo Barone', level: 'CSI' },
-      { id: 'p15_2', name: 'Angelo Greco', level: 'CSI' },
-      { id: 'p15_3', name: 'Raffaele Gentile', level: 'CSI' },
+      { id: 'p15_1', name: 'Francesco Bonafede', level: 'Regionale' },
+      { id: 'p15_2', name: 'Ambra Zagarella', level: 'Regionale' },
+      { id: 'p15_3', name: 'Chiara Pavone', level: 'Regionale' },
+      { id: 'p15_4', name: 'Francesco Rosolino', level: 'CSI' },
+      { id: 'p15_5', name: 'Giovanna Lo Cicero', level: 'Regionale' },
+      { id: 'p15_6', name: 'Giulio Cammarata', level: 'Regionale' },
+      { id: 'p15_7', name: 'Aurora Filloramo', level: 'Regionale' },
     ],
   },
 ];
@@ -232,13 +289,30 @@ export function getInitialTeamStats(team: Omit<Team, 'wins' | 'losses' | 'setsWo
 export function parseTimeToMinutes(timeStr: string): number {
   if (!timeStr || !timeStr.includes(':')) return 20 * 60 + 30; // default 20:30
   const [h, m] = timeStr.split(':').map(Number);
-  return h * 60 + m;
+  // Overnight tournament range: hours before 12:00 belong to the next morning (after midnight)
+  const adjustedHours = h < 12 ? h + 24 : h;
+  return adjustedHours * 60 + m;
 }
 
 export function formatMinutesToTime(totalMinutes: number): string {
   const h = Math.floor(totalMinutes / 60) % 24;
   const m = totalMinutes % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+export function normalizeCourtName(court?: string | null): string {
+  if (!court) return 'Campo Palamelina';
+  const trimmed = court.trim();
+  if (
+    /^campo\s*unico$/i.test(trimmed) ||
+    /^campo\s*1$/i.test(trimmed) ||
+    trimmed.toLowerCase() === 'campo' ||
+    trimmed.toLowerCase() === 'campo unico' ||
+    trimmed.toLowerCase() === 'campounico'
+  ) {
+    return 'Campo Palamelina';
+  }
+  return trimmed;
 }
 
 // Split 15 teams into 5 groups of 3 (Girone A, B, C, D, E)
@@ -585,12 +659,45 @@ export function computeClassificaAvulsa(teams: Team[], matches: Match[]): Team[]
   }));
 }
 
+export function getQfParameters(
+  quarterFinalsMode: QuarterFinalsMode = 'single_set_25',
+  durationSingleSetMinutes: number = 25,
+  durationBestOf3Minutes: number = 50,
+  durationBestOf3_15Minutes: number = 35
+): { maxSets: number; pointsPerSet: number; tieBreakPoints: number; durationMinutes: number; label: string } {
+  if (quarterFinalsMode === 'best_of_3_25_tb15' || quarterFinalsMode === 'best_of_3_tb15') {
+    return {
+      maxSets: 3,
+      pointsPerSet: 25,
+      tieBreakPoints: 15,
+      durationMinutes: durationBestOf3Minutes,
+      label: '2 Set su 3 a 25 con TB a 15',
+    };
+  }
+  if (quarterFinalsMode === 'best_of_3_15') {
+    return {
+      maxSets: 3,
+      pointsPerSet: 15,
+      tieBreakPoints: 15,
+      durationMinutes: durationBestOf3_15Minutes,
+      label: '2 Set su 3 a 15',
+    };
+  }
+  return {
+    maxSets: 1,
+    pointsPerSet: 25,
+    tieBreakPoints: 25,
+    durationMinutes: durationSingleSetMinutes,
+    label: 'Set Singolo a 25',
+  };
+}
+
 // Generate the complete Knockout Phase (Ottavi, Quarti, Semifinali, Finali)
 // According to exact specifications:
 // - 1° has BYE (advances directly to Quarti)
 // - 2° to 15° play Ottavi: 8 vs 9, 4 vs 13, 5 vs 12, 2 vs 15, 7 vs 10, 3 vs 14, 6 vs 11
 // - Quarti: 1 vs (8 vs 9), (4 vs 13) vs (5 vs 12), (2 vs 15) vs (7 vs 10), (3 vs 14) vs (6 vs 11)
-// - Quarti mode: single_set_25 OR best_of_3_tb15
+// - Quarti mode: single_set_25 | best_of_3_25_tb15 | best_of_3_15
 // - Semifinali: best 2 of 3 to 25, TB to 25
 // - Finale 3°/4°: single set to 25
 // - Finale 1°/2°: best 2 of 3 to 25, TB to 25
@@ -601,7 +708,9 @@ export function generateKnockoutMatches(
   courtCount: number = 1,
   durationSingleSetMinutes: number = 25,
   durationBestOf3Minutes: number = 50,
-  courtName: string = 'Campo Palamelina'
+  courtName: string = 'Campo Palamelina',
+  durationBestOf3_15Minutes: number = 35,
+  quarterFinalsStartTime?: string
 ): Match[] {
   // rankedTeams is sorted 1° to 15°
   const getSeed = (rank: number): Team | null => {
@@ -612,16 +721,16 @@ export function generateKnockoutMatches(
 
   // OTTAVI DI FINALE (7 matches - Round 2)
   const ottaviDefinitions = [
-    { id: 'm-ott-1', seed1: 8, seed2: 9, nextMatchId: 'm-qf-1', nextMatchSlot: 'team2' as const, label: 'Ottavi (8° vs 9°)' },
-    { id: 'm-ott-2', seed1: 4, seed2: 13, nextMatchId: 'm-qf-2', nextMatchSlot: 'team1' as const, label: 'Ottavi (4° vs 13°)' },
-    { id: 'm-ott-3', seed1: 5, seed2: 12, nextMatchId: 'm-qf-2', nextMatchSlot: 'team2' as const, label: 'Ottavi (5° vs 12°)' },
-    { id: 'm-ott-4', seed1: 2, seed2: 15, nextMatchId: 'm-qf-3', nextMatchSlot: 'team1' as const, label: 'Ottavi (2° vs 15°)' },
-    { id: 'm-ott-5', seed1: 7, seed2: 10, nextMatchId: 'm-qf-3', nextMatchSlot: 'team2' as const, label: 'Ottavi (7° vs 10°)' },
-    { id: 'm-ott-6', seed1: 3, seed2: 14, nextMatchId: 'm-qf-4', nextMatchSlot: 'team1' as const, label: 'Ottavi (3° vs 14°)' },
-    { id: 'm-ott-7', seed1: 6, seed2: 11, nextMatchId: 'm-qf-4', nextMatchSlot: 'team2' as const, label: 'Ottavi (6° vs 11°)' },
+    { id: 'm-ott-1', seed1: 8, seed2: 9, nextMatchId: 'm-qf-1', nextMatchSlot: 'team2' as const, label: '1°Ottavo' },
+    { id: 'm-ott-2', seed1: 4, seed2: 13, nextMatchId: 'm-qf-2', nextMatchSlot: 'team1' as const, label: '2°Ottavo' },
+    { id: 'm-ott-3', seed1: 5, seed2: 12, nextMatchId: 'm-qf-2', nextMatchSlot: 'team2' as const, label: '3°Ottavo' },
+    { id: 'm-ott-4', seed1: 2, seed2: 15, nextMatchId: 'm-qf-3', nextMatchSlot: 'team1' as const, label: '4°Ottavo' },
+    { id: 'm-ott-5', seed1: 7, seed2: 10, nextMatchId: 'm-qf-3', nextMatchSlot: 'team2' as const, label: '5°Ottavo' },
+    { id: 'm-ott-6', seed1: 3, seed2: 14, nextMatchId: 'm-qf-4', nextMatchSlot: 'team1' as const, label: '6°Ottavo' },
+    { id: 'm-ott-7', seed1: 6, seed2: 11, nextMatchId: 'm-qf-4', nextMatchSlot: 'team2' as const, label: '7°Ottavo' },
   ];
 
-  let currentMinutes = parseTimeToMinutes(startTime);
+  let currentMinutes = parseTimeToMinutes(startTime) + (15 * durationSingleSetMinutes);
 
   ottaviDefinitions.forEach((def, idx) => {
     matches.push({
@@ -643,16 +752,16 @@ export function generateKnockoutMatches(
       tieBreakPoints: 25,
       nextMatchId: def.nextMatchId,
       nextMatchSlot: def.nextMatchSlot,
-      matchSeedLabel: `${def.seed1}° vs ${def.seed2}°`,
     });
     currentMinutes += durationSingleSetMinutes;
   });
 
+  if (quarterFinalsStartTime && quarterFinalsStartTime.trim() !== '') {
+    currentMinutes = parseTimeToMinutes(quarterFinalsStartTime);
+  }
+
   // QUARTI DI FINALE (4 matches - Round 3)
-  const isQfBestOf3 = quarterFinalsMode === 'best_of_3_tb15';
-  const qfMaxSets = isQfBestOf3 ? 3 : 1;
-  const qfTieBreak = isQfBestOf3 ? 15 : 25;
-  const qfDuration = isQfBestOf3 ? durationBestOf3Minutes : durationSingleSetMinutes;
+  const qfParams = getQfParameters(quarterFinalsMode, durationSingleSetMinutes, durationBestOf3Minutes, durationBestOf3_15Minutes);
 
   const quartiDefinitions = [
     {
@@ -661,8 +770,7 @@ export function generateKnockoutMatches(
       team2: null, // Will come from winner of Ottavo 1 (8 vs 9)
       nextMatchId: 'm-sf-1',
       nextMatchSlot: 'team1' as const,
-      label: 'Quarto 1 (1° vs Vinc. 8°-9°)',
-      seedLabel: '1° (BYE) vs Vinc. 8°-9°',
+      label: '1°Quarto',
     },
     {
       id: 'm-qf-2',
@@ -670,8 +778,7 @@ export function generateKnockoutMatches(
       team2: null, // Winner Ottavo 3 (5 vs 12)
       nextMatchId: 'm-sf-1',
       nextMatchSlot: 'team2' as const,
-      label: 'Quarto 2 (Vinc. 4°-13° vs Vinc. 5°-12°)',
-      seedLabel: 'Vinc. 4°-13° vs Vinc. 5°-12°',
+      label: '2°Quarto',
     },
     {
       id: 'm-qf-3',
@@ -679,8 +786,7 @@ export function generateKnockoutMatches(
       team2: null, // Winner Ottavo 5 (7 vs 10)
       nextMatchId: 'm-sf-2',
       nextMatchSlot: 'team1' as const,
-      label: 'Quarto 3 (Vinc. 2°-15° vs Vinc. 7°-10°)',
-      seedLabel: 'Vinc. 2°-15° vs Vinc. 7°-10°',
+      label: '3°Quarto',
     },
     {
       id: 'm-qf-4',
@@ -688,8 +794,7 @@ export function generateKnockoutMatches(
       team2: null, // Winner Ottavo 7 (6 vs 11)
       nextMatchId: 'm-sf-2',
       nextMatchSlot: 'team2' as const,
-      label: 'Quarto 4 (Vinc. 3°-14° vs Vinc. 6°-11°)',
-      seedLabel: 'Vinc. 3°-14° vs Vinc. 6°-11°',
+      label: '4°Quarto',
     },
   ];
 
@@ -708,36 +813,29 @@ export function generateKnockoutMatches(
       court: courtName,
       time: formatMinutesToTime(currentMinutes),
       phase: 'eliminazione',
-      pointsPerSet: 25,
-      maxSets: qfMaxSets,
-      tieBreakPoints: qfTieBreak,
+      pointsPerSet: qfParams.pointsPerSet,
+      maxSets: qfParams.maxSets,
+      tieBreakPoints: qfParams.tieBreakPoints,
       nextMatchId: def.nextMatchId,
       nextMatchSlot: def.nextMatchSlot,
-      matchSeedLabel: def.seedLabel,
     });
-    currentMinutes += qfDuration;
+    currentMinutes += qfParams.durationMinutes;
   });
 
   // SEMIFINALI (2 matches - Round 4)
-  // Formato: 2 set su 3 a 25 con Tie-Break a 25 punti!
+  // Formato: 2 set su 3 a 25 con Tie-Break a 15 punti
   const semifinaliDefinitions = [
     {
       id: 'm-sf-1',
       nextMatchId: 'm-fin-1-2',
       nextMatchSlot: 'team1' as const,
-      loserMatchId: 'm-fin-3-4',
-      loserMatchSlot: 'team1' as const,
-      label: 'Semifinale 1 (Vinc. Q1 vs Vinc. Q2)',
-      seedLabel: 'Vinc. Q1 vs Vinc. Q2',
+      label: '1°Semifinale',
     },
     {
       id: 'm-sf-2',
       nextMatchId: 'm-fin-1-2',
       nextMatchSlot: 'team2' as const,
-      loserMatchId: 'm-fin-3-4',
-      loserMatchSlot: 'team2' as const,
-      label: 'Semifinale 2 (Vinc. Q3 vs Vinc. Q4)',
-      seedLabel: 'Vinc. Q3 vs Vinc. Q4',
+      label: '2°Semifinale',
     },
   ];
 
@@ -758,22 +856,18 @@ export function generateKnockoutMatches(
       phase: 'eliminazione',
       pointsPerSet: 25,
       maxSets: 3, // 2 su 3
-      tieBreakPoints: 25, // Tie-break a 25 come richiesto
+      tieBreakPoints: 15, // Tie-break sempre a 15 punti
       nextMatchId: def.nextMatchId,
       nextMatchSlot: def.nextMatchSlot,
-      loserMatchId: def.loserMatchId,
-      loserMatchSlot: def.loserMatchSlot,
-      matchSeedLabel: def.seedLabel,
     });
     currentMinutes += durationBestOf3Minutes;
   });
 
-  // FINALI (2 matches - Round 5)
-  // Finale 3°/4° Posto
+  // GRAND FINALE 1°/2° Posto (Round 5 - Solo Finale 1° e 2° Posto, no 3°-4°)
   matches.push({
-    id: 'm-fin-3-4',
+    id: 'm-fin-1-2',
     round: 5,
-    roundLabel: 'Finale 3° e 4° Posto 🥉',
+    roundLabel: 'Grand Finale 1° e 2° Posto 🏆',
     position: 1,
     team1: null,
     team2: null,
@@ -785,30 +879,8 @@ export function generateKnockoutMatches(
     time: formatMinutesToTime(currentMinutes),
     phase: 'eliminazione',
     pointsPerSet: 25,
-    maxSets: 1,
-    tieBreakPoints: 25,
-    matchSeedLabel: 'Perdente SF1 vs Perdente SF2',
-  });
-  currentMinutes += durationSingleSetMinutes;
-
-  // Finale 1°/2° Posto (2 su 3 con Tie-Break a 25)
-  matches.push({
-    id: 'm-fin-1-2',
-    round: 5,
-    roundLabel: 'Grand Finale 1° e 2° Posto 🏆',
-    position: 2,
-    team1: null,
-    team2: null,
-    team1Score: 0,
-    team2Score: 0,
-    sets: [],
-    status: 'scheduled',
-    court: courtName,
-    time: formatMinutesToTime(currentMinutes),
-    phase: 'eliminazione',
-    pointsPerSet: 25,
     maxSets: 3, // 2 su 3
-    tieBreakPoints: 25, // Tie-break a 25
+    tieBreakPoints: 15, // Tie-break sempre a 15 punti
     matchSeedLabel: 'Vincente SF1 vs Vincente SF2',
   });
 
@@ -822,92 +894,84 @@ export function recalculateTournamentMatchTimes(
   durationSingleSetMinutes: number = 25,
   durationBestOf3Minutes: number = 50,
   courtName: string = 'Campo Palamelina',
-  quarterFinalsMode: QuarterFinalsMode = 'single_set_25'
+  quarterFinalsMode: QuarterFinalsMode = 'single_set_25',
+  durationBestOf3_15Minutes: number = 35,
+  quarterFinalsStartTime?: string
 ): Match[] {
-  const groupMatches = matches
+  // Exclude deleted 3°-4° final match
+  const filteredMatches = matches.filter((m) => m.id !== 'm-fin-3-4');
+
+  const groupMatches = filteredMatches
     .filter((m) => m.phase === 'gironi' || m.round === 1)
     .sort((a, b) => (a.position || 0) - (b.position || 0));
 
-  const ottaviMatches = matches
+  const ottaviMatches = filteredMatches
     .filter((m) => m.round === 2)
     .sort((a, b) => (a.position || 0) - (b.position || 0));
 
-  const isQfBestOf3 = quarterFinalsMode === 'best_of_3_tb15';
-  const qfDuration = isQfBestOf3 ? durationBestOf3Minutes : durationSingleSetMinutes;
+  const qfParams = getQfParameters(
+    quarterFinalsMode,
+    durationSingleSetMinutes,
+    durationBestOf3Minutes,
+    durationBestOf3_15Minutes
+  );
 
-  const quartiMatches = matches
+  const quartiMatches = filteredMatches
     .filter((m) => m.round === 3)
     .sort((a, b) => (a.position || 0) - (b.position || 0));
 
-  const semifinaliMatches = matches
+  const semifinaliMatches = filteredMatches
     .filter((m) => m.round === 4)
     .sort((a, b) => (a.position || 0) - (b.position || 0));
 
-  const finale34 = matches.find((m) => m.id === 'm-fin-3-4' || (m.round === 5 && m.position === 1));
-  const finale12 = matches.find((m) => m.id === 'm-fin-1-2' || (m.round === 5 && m.position === 2));
+  const finale12 = filteredMatches.find((m) => m.id === 'm-fin-1-2' || m.round === 5);
 
-  let currentMinutes = parseTimeToMinutes(startTime);
+  let currentMinutes = 0;
+  if (quarterFinalsStartTime && quarterFinalsStartTime.trim() !== '') {
+    currentMinutes = parseTimeToMinutes(quarterFinalsStartTime);
+  } else {
+    // If not provided, fallback to standard offset (15 gironi + 7 ottavi)
+    currentMinutes = parseTimeToMinutes(startTime) + (15 * durationSingleSetMinutes) + (7 * durationSingleSetMinutes);
+  }
   const updatedMap = new Map<string, Partial<Match>>();
 
-  // 1. Group matches
-  groupMatches.forEach((m) => {
-    updatedMap.set(m.id, {
-      court: courtName,
-      time: formatMinutesToTime(currentMinutes),
-    });
-    currentMinutes += durationSingleSetMinutes;
-  });
-
-  // 2. Ottavi matches
-  ottaviMatches.forEach((m) => {
-    updatedMap.set(m.id, {
-      court: courtName,
-      time: formatMinutesToTime(currentMinutes),
-    });
-    currentMinutes += durationSingleSetMinutes;
-  });
-
-  // 3. Quarti matches
+  // 3. Quarti matches (Configured QF formula)
   quartiMatches.forEach((m) => {
     updatedMap.set(m.id, {
       court: courtName,
       time: formatMinutesToTime(currentMinutes),
-      maxSets: isQfBestOf3 ? 3 : 1,
-      tieBreakPoints: isQfBestOf3 ? 15 : 25,
+      maxSets: qfParams.maxSets,
+      pointsPerSet: qfParams.pointsPerSet,
+      tieBreakPoints: qfParams.tieBreakPoints,
     });
-    currentMinutes += qfDuration;
+    currentMinutes += qfParams.durationMinutes;
   });
 
-  // 4. Semifinali matches (2 su 3)
+  // 4. Semifinali matches (2 su 3 a 25 con TB a 15)
   semifinaliMatches.forEach((m) => {
     updatedMap.set(m.id, {
       court: courtName,
       time: formatMinutesToTime(currentMinutes),
       maxSets: 3,
-      tieBreakPoints: 25,
+      pointsPerSet: 25,
+      tieBreakPoints: 15,
     });
     currentMinutes += durationBestOf3Minutes;
   });
 
-  // 5. Finale 3°-4° (single set 25)
-  if (finale34) {
-    updatedMap.set(finale34.id, {
-      court: courtName,
-      time: formatMinutesToTime(currentMinutes),
-    });
-    currentMinutes += durationSingleSetMinutes;
-  }
-
-  // 6. Finale 1°-2° (2 su 3)
+  // 5. Finale 1°-2° (2 su 3 a 25 con TB a 15)
   if (finale12) {
     updatedMap.set(finale12.id, {
       court: courtName,
       time: formatMinutesToTime(currentMinutes),
+      maxSets: 3,
+      pointsPerSet: 25,
+      tieBreakPoints: 15,
     });
     currentMinutes += durationBestOf3Minutes;
   }
 
-  return matches.map((m) => {
+  return filteredMatches.map((m) => {
     const patch = updatedMap.get(m.id);
     return patch ? { ...m, ...patch } : m;
   });
@@ -969,10 +1033,78 @@ export function autoResolveAndPropagate(matches: Match[]): Match[] {
   return updated;
 }
 
-// Check if a single set score is complete and won by 2 points
+// Validation result interface for set scores
+export interface SetScoreValidation {
+  isValid: boolean;
+  isComplete: boolean;
+  error?: string;
+  winner?: 'team1' | 'team2';
+}
+
+/**
+ * Validates a set score according to official rules:
+ * - One team must reach at least the target points (e.g. 25 or 15).
+ * - If the winning score equals targetPoints (25 or 15), difference must be >= 2 (e.g. 25-23, 25-20, 15-13, 15-10).
+ * - If the winning score exceeds targetPoints (>25 or >15), the difference MUST be EXACTLY 2 points (e.g. 26-24, 27-25, 16-14, 17-15).
+ * - Results like 26-21 or 17-12 are INVALID.
+ */
+export function validateSetScore(
+  p1: number,
+  p2: number,
+  targetPoints: number = 25
+): SetScoreValidation {
+  if (isNaN(p1) || isNaN(p2) || p1 < 0 || p2 < 0) {
+    return { isValid: false, isComplete: false, error: 'I punti devono essere numeri positivi.' };
+  }
+
+  // Not played yet
+  if (p1 === 0 && p2 === 0) {
+    return { isValid: true, isComplete: false };
+  }
+
+  const maxP = Math.max(p1, p2);
+  const minP = Math.min(p1, p2);
+  const diff = maxP - minP;
+  const winner: 'team1' | 'team2' = p1 > p2 ? 'team1' : 'team2';
+
+  // 1. One team must reach at least targetPoints
+  if (maxP < targetPoints) {
+    return {
+      isValid: false,
+      isComplete: false,
+      error: `Punteggio incompleto: una delle due squadre deve raggiungere almeno ${targetPoints} punti (attualmente: ${p1} - ${p2}).`,
+    };
+  }
+
+  // 2. Minimum advantage of 2 points
+  if (diff < 2) {
+    return {
+      isValid: false,
+      isComplete: false,
+      error: `Scarto insufficiente: occorrono almeno 2 punti di vantaggio per chiudere il set (attualmente: ${p1} - ${p2}, scarto di ${diff}).`,
+    };
+  }
+
+  // 3. Exact 2-point difference when exceeding target (> 25 or > 15)
+  if (maxP > targetPoints && diff !== 2) {
+    return {
+      isValid: false,
+      isComplete: false,
+      error: `Risultato non ammesso (${p1} - ${p2}): superati i ${targetPoints} punti il set deve concludersi con uno scarto di soli 2 punti (es. ${maxP} - ${maxP - 2} oppure ${targetPoints} - ${minP}).`,
+    };
+  }
+
+  // Score is completely valid and finished
+  return {
+    isValid: true,
+    isComplete: true,
+    winner,
+  };
+}
+
+// Check if a single set score is complete and won strictly by the rules
 export function isSetFinished(p1: number, p2: number, targetPoints: number = 25): boolean {
-  if (p1 < targetPoints && p2 < targetPoints) return false;
-  return Math.abs(p1 - p2) >= 2;
+  return validateSetScore(p1, p2, targetPoints).isComplete;
 }
 
 // Generate realistic simulated scores for testing
@@ -1010,7 +1142,7 @@ export function simulateMatch(match: Match): Match {
 
   const isBestOf3 = match.maxSets === 3;
   const targetPoints = match.pointsPerSet || 25;
-  const tieBreakTarget = match.tieBreakPoints || (match.round === 3 ? 15 : 25);
+  const tieBreakTarget = match.tieBreakPoints || 15;
 
   if (!isBestOf3) {
     const s1 = simulateSingleSet(targetPoints);
@@ -1076,23 +1208,141 @@ export function simulateKnockoutRound(matches: Match[]): Match[] {
   return autoResolveAndPropagate(updated);
 }
 
-// Swap times between two matches
+// Swap times between two matches (ONLY if BOTH are not completed)
 export function swapMatchTimes(matches: Match[], matchId1: string, matchId2: string): Match[] {
   const m1 = matches.find((m) => m.id === matchId1);
   const m2 = matches.find((m) => m.id === matchId2);
   if (!m1 || !m2) return matches;
+  if (m1.status === 'completed' || m2.status === 'completed') {
+    return matches;
+  }
 
   const t1 = m1.time;
   const t2 = m2.time;
+  const c1 = m1.court;
+  const c2 = m2.court;
+  const p1 = m1.position;
+  const p2 = m2.position;
 
   return matches.map((m) => {
-    if (m.id === matchId1) return { ...m, time: t2 };
-    if (m.id === matchId2) return { ...m, time: t1 };
+    if (m.id === matchId1) return { ...m, time: t2, court: c2, position: p2 };
+    if (m.id === matchId2) return { ...m, time: t1, court: c1, position: p1 };
     return m;
   });
 }
 
-// Ripple shift: shift starting time of target match and all subsequent matches on the same court
+// Reorder matches using Shift (slittamento): ONLY pending matches are reordered and their times shifted
+export function reorderMatchesByShift(
+  matches: Match[],
+  sourceId: string,
+  targetId: string
+): { updated: Match[]; success: boolean; error?: string } {
+  if (sourceId === targetId) return { updated: matches, success: false };
+
+  const sourceMatch = matches.find((m) => m.id === sourceId);
+  const targetMatch = matches.find((m) => m.id === targetId);
+
+  if (!sourceMatch || !targetMatch) {
+    return { updated: matches, success: false, error: 'Gare non trovate.' };
+  }
+
+  if (sourceMatch.status === 'completed' || targetMatch.status === 'completed') {
+    return {
+      updated: matches,
+      success: false,
+      error: 'Non è possibile spostare o scambiare gare già disputate.',
+    };
+  }
+
+  // Get only pending/scheduled matches sorted chronologically
+  const pendingMatches = matches
+    .filter((m) => m.status !== 'completed')
+    .sort((a, b) => {
+      const tA = parseTimeToMinutes(a.time);
+      const tB = parseTimeToMinutes(b.time);
+      if (tA !== tB) return tA - tB;
+      return (a.position || 0) - (b.position || 0);
+    });
+
+  const sourceIndexInPending = pendingMatches.findIndex((m) => m.id === sourceId);
+  const targetIndexInPending = pendingMatches.findIndex((m) => m.id === targetId);
+
+  if (sourceIndexInPending === -1 || targetIndexInPending === -1) {
+    return { updated: matches, success: false, error: 'Gare non trovate tra quelle da disputare.' };
+  }
+
+  // Extract original sorted time slots and positions from pending matches
+  const timeSlots = pendingMatches.map((m) => m.time);
+  const positions = pendingMatches.map((m) => m.position);
+  const courts = pendingMatches.map((m) => m.court);
+
+  // Shift the array of pending matches
+  const reorderedPending = [...pendingMatches];
+  const [movedItem] = reorderedPending.splice(sourceIndexInPending, 1);
+  reorderedPending.splice(targetIndexInPending, 0, movedItem);
+
+  // Re-assign the slots to the new sequence of pending matches
+  const updatedPendingMap = new Map<string, Match>();
+  reorderedPending.forEach((m, idx) => {
+    updatedPendingMap.set(m.id, {
+      ...m,
+      time: timeSlots[idx] || m.time,
+      position: positions[idx] !== undefined ? positions[idx] : m.position,
+      court: courts[idx] || m.court,
+    });
+  });
+
+  // Rebuild the full matches array preserving completed matches
+  const fullyUpdated = matches.map((m) => {
+    if (updatedPendingMap.has(m.id)) {
+      return updatedPendingMap.get(m.id)!;
+    }
+    return m;
+  });
+
+  return { updated: fullyUpdated, success: true };
+}
+
+// Reorder matches using Swap (inversione): ONLY pending matches can be swapped
+export function reorderMatchesBySwap(
+  matches: Match[],
+  sourceId: string,
+  targetId: string
+): { updated: Match[]; success: boolean; error?: string } {
+  if (sourceId === targetId) return { updated: matches, success: false };
+
+  const sourceMatch = matches.find((m) => m.id === sourceId);
+  const targetMatch = matches.find((m) => m.id === targetId);
+
+  if (!sourceMatch || !targetMatch) {
+    return { updated: matches, success: false, error: 'Gare non trovate.' };
+  }
+
+  if (sourceMatch.status === 'completed' || targetMatch.status === 'completed') {
+    return {
+      updated: matches,
+      success: false,
+      error: 'Non è possibile scambiare orari con una gara già disputata.',
+    };
+  }
+
+  const t1 = sourceMatch.time;
+  const t2 = targetMatch.time;
+  const c1 = sourceMatch.court;
+  const c2 = targetMatch.court;
+  const p1 = sourceMatch.position;
+  const p2 = targetMatch.position;
+
+  const fullyUpdated = matches.map((m) => {
+    if (m.id === sourceId) return { ...m, time: t2, court: c2, position: p2 };
+    if (m.id === targetId) return { ...m, time: t1, court: c1, position: p1 };
+    return m;
+  });
+
+  return { updated: fullyUpdated, success: true };
+}
+
+// Ripple shift: shift starting time of target match and all subsequent matches on the same court (pending only)
 export function shiftMatchesOnCourt(
   matches: Match[],
   targetMatchId: string,
@@ -1102,16 +1352,16 @@ export function shiftMatchesOnCourt(
 ): Match[] {
   const targetMatch = matches.find((m) => m.id === targetMatchId);
   if (!targetMatch) return matches;
+  if (targetMatch.status === 'completed') return matches;
 
   const newTimeMinutes = parseTimeToMinutes(newTime);
 
-  // Find all other matches on the same court that have an scheduled time >= newTimeMinutes
-  // and are not the target match
+  // Find all pending matches on the same court that have a scheduled time >= newTimeMinutes
   return matches.map((m) => {
     if (m.id === targetMatchId) {
       return { ...m, time: newTime, court };
     }
-    if (m.court.trim().toLowerCase() === court.trim().toLowerCase()) {
+    if (m.status !== 'completed' && m.court.trim().toLowerCase() === court.trim().toLowerCase()) {
       const mTimeMin = parseTimeToMinutes(m.time);
       if (mTimeMin >= newTimeMinutes) {
         return {

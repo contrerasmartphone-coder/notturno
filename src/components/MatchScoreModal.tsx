@@ -1,7 +1,25 @@
 import React, { useState } from 'react';
 import { Match, SetScore, Team } from '../types';
-import { isSetFinished, swapMatchTimes, shiftMatchesOnCourt, parseTimeToMinutes, formatMinutesToTime } from '../utils';
-import { X, Trophy, Save, Clock, MapPin, AlertTriangle, CheckCircle2, ArrowLeftRight, FastForward, Check, Sparkles } from 'lucide-react';
+import {
+  isSetFinished,
+  validateSetScore,
+  swapMatchTimes,
+  shiftMatchesOnCourt,
+  parseTimeToMinutes,
+  formatMinutesToTime,
+} from '../utils';
+import {
+  X,
+  Trophy,
+  Save,
+  Clock,
+  MapPin,
+  AlertTriangle,
+  CheckCircle2,
+  ArrowLeftRight,
+  FastForward,
+  Info,
+} from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface MatchScoreModalProps {
@@ -24,8 +42,9 @@ export default function MatchScoreModal({
   onShowToast,
 }: MatchScoreModalProps) {
   const isBestOf3 = match.maxSets === 3;
-  const targetPoints = match.pointsPerSet || 25;
-  const tieBreakTarget = match.tieBreakPoints || (isBestOf3 && match.round === 3 ? 15 : 25);
+  const initialTarget = match.pointsPerSet || 25;
+  const [selectedTargetPoints, setSelectedTargetPoints] = useState<number>(initialTarget);
+  const tieBreakTarget = match.tieBreakPoints || 15;
 
   const team1Name = teams.find((t) => t.id === match.team1?.id)?.name || match.team1?.name || 'TBD';
   const team2Name = teams.find((t) => t.id === match.team2?.id)?.name || match.team2?.name || 'TBD';
@@ -38,7 +57,7 @@ export default function MatchScoreModal({
   });
 
   const [status, setStatus] = useState<'scheduled' | 'live' | 'completed'>(match.status || 'scheduled');
-  const [court, setCourt] = useState<string>(match.court || 'Campo 1');
+  const [court, setCourt] = useState<string>(match.court || 'Campo Palamelina');
   const [time, setTime] = useState<string>(match.time || '20:30');
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
@@ -52,17 +71,33 @@ export default function MatchScoreModal({
       m.time.trim() === time.trim()
   );
 
-  // Calculate sets won
+  // Real-time validations for all sets
+  const valSet1 = validateSetScore(sets[0]?.team1 ?? 0, sets[0]?.team2 ?? 0, selectedTargetPoints);
+  const valSet2 = isBestOf3
+    ? validateSetScore(sets[1]?.team1 ?? 0, sets[1]?.team2 ?? 0, selectedTargetPoints)
+    : null;
+  const valSet3 = isBestOf3
+    ? validateSetScore(sets[2]?.team1 ?? 0, sets[2]?.team2 ?? 0, tieBreakTarget)
+    : null;
+
+  // Calculate sets won based strictly on verified sets
   let t1SetsWon = 0;
   let t2SetsWon = 0;
 
-  sets.forEach((s, idx) => {
-    const target = idx === 2 && isBestOf3 ? tieBreakTarget : targetPoints;
-    if (isSetFinished(s.team1, s.team2, target)) {
-      if (s.team1 > s.team2) t1SetsWon++;
-      else if (s.team2 > s.team1) t2SetsWon++;
-    }
-  });
+  if (valSet1.isComplete) {
+    if (valSet1.winner === 'team1') t1SetsWon++;
+    else if (valSet1.winner === 'team2') t2SetsWon++;
+  }
+
+  if (valSet2 && valSet2.isComplete) {
+    if (valSet2.winner === 'team1') t1SetsWon++;
+    else if (valSet2.winner === 'team2') t2SetsWon++;
+  }
+
+  if (valSet3 && valSet3.isComplete) {
+    if (valSet3.winner === 'team1') t1SetsWon++;
+    else if (valSet3.winner === 'team2') t2SetsWon++;
+  }
 
   const requiredSetsToWin = isBestOf3 ? 2 : 1;
   const isMatchComplete = t1SetsWon >= requiredSetsToWin || t2SetsWon >= requiredSetsToWin;
@@ -72,12 +107,14 @@ export default function MatchScoreModal({
       : match.team2?.id
     : undefined;
 
-  const handleSetScoreChange = (setIdx: number, team: 'team1' | 'team2', value: number) => {
+  const handleSetScoreChange = (setIdx: number, team: 'team1' | 'team2', value: string | number) => {
+    setErrorMessage(null);
     const updated = [...sets];
     while (updated.length <= setIdx) {
       updated.push({ team1: 0, team2: 0 });
     }
-    const val = Math.max(0, value);
+    const num = typeof value === 'string' ? (value === '' ? 0 : parseInt(value, 10)) : value;
+    const val = Math.max(0, isNaN(num) ? 0 : num);
     updated[setIdx] = {
       ...updated[setIdx],
       [team]: val,
@@ -91,6 +128,7 @@ export default function MatchScoreModal({
   };
 
   const handleQuickScore = (setIdx: number, p1: number, p2: number) => {
+    setErrorMessage(null);
     const updated = [...sets];
     while (updated.length <= setIdx) {
       updated.push({ team1: 0, team2: 0 });
@@ -120,7 +158,7 @@ export default function MatchScoreModal({
       }
       onClose();
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Errore durante il salvataggio dell\'orario');
+      setErrorMessage(err?.message || "Errore durante il salvataggio dell'orario");
     } finally {
       setIsSavingSchedule(false);
     }
@@ -129,6 +167,10 @@ export default function MatchScoreModal({
   // Resolve conflict: Swap times with conflicting match
   const handleResolveSwapTimes = async () => {
     if (!conflictingMatch || !onBatchUpdateMatches) return;
+    if (match.status === 'completed' || conflictingMatch.status === 'completed') {
+      setErrorMessage('Non è possibile scambiare orari con una gara già disputata.');
+      return;
+    }
     setIsSavingSchedule(true);
     setErrorMessage(null);
     try {
@@ -143,7 +185,7 @@ export default function MatchScoreModal({
       }
       onClose();
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Errore durante l\'inversione degli orari');
+      setErrorMessage(err?.message || "Errore durante l'inversione degli orari");
     } finally {
       setIsSavingSchedule(false);
     }
@@ -166,20 +208,57 @@ export default function MatchScoreModal({
       }
       onClose();
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Errore durante lo scorrimento degli orari');
+      setErrorMessage(err?.message || "Errore durante lo scorrimento degli orari");
     } finally {
       setIsSavingSchedule(false);
     }
   };
 
-  // Full score save
+  // Full score save with strict rule verification
   const handleSave = async () => {
     setIsSaving(true);
     setErrorMessage(null);
+
     try {
+      // 1. Identify active non-zero sets, ignoring sets beyond what's allowed/needed
+      const maxAllowedSets = isBestOf3 ? (isThirdSetNeeded ? 3 : 2) : 1;
+      const activeSets = sets.slice(0, maxAllowedSets).filter((s) => s.team1 > 0 || s.team2 > 0);
+
+      // 2. Validate every active set score
+      for (let idx = 0; idx < activeSets.length; idx++) {
+        const s = activeSets[idx];
+        const target = idx === 2 && isBestOf3 ? tieBreakTarget : selectedTargetPoints;
+        const val = validateSetScore(s.team1, s.team2, target);
+
+        if (!val.isValid || !val.isComplete) {
+          const setLabel = idx === 2 ? '3° Set (Tie-Break)' : `${idx + 1}° Set`;
+          const err = `${setLabel}: ${val.error || 'Punteggio non valido.'}`;
+          setErrorMessage(err);
+          if (onShowToast) {
+            onShowToast(err, 'error', 'Punteggio Non Valido');
+          }
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      // If user marks match as completed or attempts to save winning sets, ensure at least 1 set is fully completed
+      if (activeSets.length === 0 && status === 'completed') {
+        const err = 'Inserisci un punteggio valido prima di completare la gara.';
+        setErrorMessage(err);
+        if (onShowToast) {
+          onShowToast(err, 'error', 'Punteggio Mancante');
+        }
+        setIsSaving(false);
+        return;
+      }
+
       const finalStatus = isMatchComplete ? 'completed' : status;
+
       await onSaveScore(match.id, {
-        sets: sets.filter((s) => s.team1 > 0 || s.team2 > 0),
+        sets: activeSets,
+        pointsPerSet: selectedTargetPoints,
+        tieBreakPoints: tieBreakTarget,
         team1Score: t1SetsWon,
         team2Score: t2SetsWon,
         winnerId: winnerId,
@@ -187,10 +266,11 @@ export default function MatchScoreModal({
         court: court.trim(),
         time: time.trim(),
       });
+
       if (onShowToast) {
         onShowToast(
           isMatchComplete
-            ? `Partita completata! Vincitore: ${winnerId === match.team1?.id ? match.team1?.name : match.team2?.name}`
+            ? `Partita completata! Vincitore: ${winnerId === match.team1?.id ? team1Name : team2Name}`
             : 'Dati partita salvati correttamente.',
           'success',
           'Salvataggio Riuscito'
@@ -221,13 +301,13 @@ export default function MatchScoreModal({
         <div className="flex justify-between items-start border-b border-slate-800 pb-3.5">
           <div>
             <span className="text-xs uppercase font-bold tracking-wider text-amber-400">
-              {match.roundLabel}
+              {match.phase === 'eliminazione' ? match.roundLabel.replace(/\s*\(.*?\)/g, '') : match.roundLabel}
             </span>
             <h3 className="text-xl font-bold text-white mt-0.5">Gestione Punteggio & Orario</h3>
             <p className="text-xs text-slate-400">
               {isBestOf3
-                ? `Formula: 2 set su 3 a 25 punti (Tie-Break a ${tieBreakTarget})`
-                : 'Formula: Set Singolo a 25 punti (minimo 2 punti di scarto)'}
+                ? `Formula: 2 set su 3 a ${selectedTargetPoints} punti (Tie-Break a ${tieBreakTarget})`
+                : `Formula: Set Singolo a ${selectedTargetPoints} punti (scarto obbligatorio di 2 punti)`}
             </p>
           </div>
           <button
@@ -238,10 +318,11 @@ export default function MatchScoreModal({
           </button>
         </div>
 
+        {/* Global Error Banner */}
         {errorMessage && (
-          <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-xs font-semibold flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-            {errorMessage}
+          <div className="p-3.5 bg-red-500/15 border border-red-500/40 rounded-xl text-red-300 text-xs font-semibold flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+            <span>{errorMessage}</span>
           </div>
         )}
 
@@ -249,7 +330,9 @@ export default function MatchScoreModal({
         <div className="grid grid-cols-5 items-center bg-slate-800/40 border border-slate-800 rounded-xl p-3.5 sm:p-4 text-center gap-1.5">
           <div className="col-span-2 text-left">
             <span className="text-[10px] sm:text-[11px] text-slate-400 block font-medium">Squadra 1</span>
-            <span className="text-xs sm:text-base font-bold text-white block break-words leading-tight">{team1Name}</span>
+            <span className="text-xs sm:text-base font-bold text-white block break-words leading-tight">
+              {team1Name}
+            </span>
             <span className="text-[11px] sm:text-xs text-amber-400 font-semibold">{t1SetsWon} set vinti</span>
           </div>
 
@@ -261,8 +344,53 @@ export default function MatchScoreModal({
 
           <div className="col-span-2 text-right">
             <span className="text-[10px] sm:text-[11px] text-slate-400 block font-medium">Squadra 2</span>
-            <span className="text-xs sm:text-base font-bold text-white block break-words leading-tight">{team2Name}</span>
+            <span className="text-xs sm:text-base font-bold text-white block break-words leading-tight">
+              {team2Name}
+            </span>
             <span className="text-[11px] sm:text-xs text-amber-400 font-semibold">{t2SetsWon} set vinti</span>
+          </div>
+        </div>
+
+        {/* Target Points Selection (25 vs 15 Points Target) */}
+        <div className="bg-slate-800/40 border border-slate-800 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <span className="text-xs font-bold text-white block flex items-center gap-1.5">
+              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+              <span>Target Punti Set di Gioco</span>
+            </span>
+            <span className="text-[11px] text-slate-400 block">
+              Almeno una squadra deve raggiungere i {selectedTargetPoints} punti (scarto di soli 2 punti se oltre).
+            </span>
+          </div>
+          <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 p-1 rounded-xl shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedTargetPoints(25);
+                setErrorMessage(null);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                selectedTargetPoints === 25
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              25 Punti
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedTargetPoints(15);
+                setErrorMessage(null);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                selectedTargetPoints === 15
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              15 Punti
+            </button>
           </div>
         </div>
 
@@ -296,10 +424,10 @@ export default function MatchScoreModal({
                 onChange={(e) => setCourt(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:border-amber-400 focus:outline-none"
               >
+                <option value="Campo Palamelina">Campo Palamelina</option>
                 <option value="Campo 1">Campo 1</option>
                 <option value="Campo 2">Campo 2</option>
                 <option value="Campo 3">Campo 3</option>
-                <option value="Campo Centrale 1">Campo Centrale 1</option>
               </select>
             </div>
 
@@ -318,7 +446,7 @@ export default function MatchScoreModal({
                 <button
                   type="button"
                   onClick={() => handleAdjustTime(-5)}
-                  className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-mono transition"
+                  className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-mono transition cursor-pointer"
                   title="-5 minuti"
                 >
                   -5m
@@ -326,7 +454,7 @@ export default function MatchScoreModal({
                 <button
                   type="button"
                   onClick={() => handleAdjustTime(+5)}
-                  className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-mono transition"
+                  className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-mono transition cursor-pointer"
                   title="+5 minuti"
                 >
                   +5m
@@ -334,8 +462,8 @@ export default function MatchScoreModal({
                 <button
                   type="button"
                   onClick={() => handleAdjustTime(+25)}
-                  className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-mono transition"
-                  title="+25 minuti (durata standard gara)"
+                  className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-mono transition cursor-pointer"
+                  title="+25 minuti"
                 >
                   +25m
                 </button>
@@ -358,6 +486,9 @@ export default function MatchScoreModal({
                       {conflictingMatch.roundLabel} ({conflictingMatch.team1?.name || 'TBD'} vs{' '}
                       {conflictingMatch.team2?.name || 'TBD'})
                     </strong>
+                    {conflictingMatch.status === 'completed' && (
+                      <span className="text-amber-400 font-semibold ml-1">(Gara già disputata)</span>
+                    )}
                   </span>
                 </div>
               </div>
@@ -366,8 +497,13 @@ export default function MatchScoreModal({
                 <button
                   type="button"
                   onClick={handleResolveSwapTimes}
-                  disabled={isSavingSchedule}
-                  className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                  disabled={isSavingSchedule || match.status === 'completed' || conflictingMatch.status === 'completed'}
+                  className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 disabled:opacity-40 disabled:hover:bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer disabled:cursor-not-allowed"
+                  title={
+                    conflictingMatch.status === 'completed'
+                      ? 'Non è possibile scambiare orari con una gara già disputata'
+                      : undefined
+                  }
                 >
                   <ArrowLeftRight className="w-3.5 h-3.5" />
                   Inverti Orario con l'altra gara
@@ -387,18 +523,33 @@ export default function MatchScoreModal({
           )}
         </div>
 
-        {/* Set Score Editors */}
-        <div className="space-y-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Punteggi dei Set</h4>
+        {/* Set Score Editors with Validation Feedback */}
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Punteggi dei Set
+            </h4>
+            <span className="text-[11px] text-slate-400">
+              Target: <strong className="text-amber-400">{selectedTargetPoints} punti</strong> (scarto 2 pt)
+            </span>
+          </div>
 
-          {/* Set 1 */}
-          <div className="bg-slate-800/30 border border-slate-800 rounded-xl p-4 space-y-3">
+          {/* SET 1 */}
+          <div
+            className={`border rounded-xl p-4 space-y-3 transition ${
+              valSet1.isComplete
+                ? 'bg-emerald-500/5 border-emerald-500/30'
+                : (sets[0]?.team1 || 0) > 0 || (sets[0]?.team2 || 0) > 0
+                ? 'bg-amber-500/5 border-amber-500/30'
+                : 'bg-slate-800/30 border-slate-800'
+            }`}
+          >
             <div className="flex justify-between items-center text-xs">
-              <span className="font-bold text-white">1° Set (a 25 punti)</span>
-              {isSetFinished(sets[0]?.team1 || 0, sets[0]?.team2 || 0, 25) && (
-                <span className="text-emerald-400 font-semibold flex items-center gap-1">
+              <span className="font-bold text-white">1° Set (Target {selectedTargetPoints} punti)</span>
+              {valSet1.isComplete && (
+                <span className="text-emerald-400 font-semibold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  Vinto da {sets[0].team1 > sets[0].team2 ? match.team1?.name : match.team2?.name}
+                  Vinto da {valSet1.winner === 'team1' ? team1Name : team2Name}
                 </span>
               )}
             </div>
@@ -409,21 +560,22 @@ export default function MatchScoreModal({
                 <button
                   type="button"
                   onClick={() => handleAdjustPoints(0, 'team1', -1)}
-                  className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center justify-center transition"
+                  className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center justify-center transition cursor-pointer"
                 >
                   -
                 </button>
                 <input
-                  type="number"
-                  min="0"
-                  value={sets[0]?.team1 ?? 0}
-                  onChange={(e) => handleSetScoreChange(0, 'team1', parseInt(e.target.value, 10) || 0)}
-                  className="w-full text-center text-xl font-bold bg-slate-900 border border-slate-700 rounded-lg py-1 text-white focus:border-amber-400 focus:outline-none"
+                  type="text"
+                  inputMode="numeric"
+                  value={sets[0]?.team1 === 0 ? '' : (sets[0]?.team1 ?? '')}
+                  onChange={(e) => handleSetScoreChange(0, 'team1', e.target.value)}
+                  placeholder="0"
+                  className="w-full text-center text-xl font-bold bg-slate-900 border border-slate-700 rounded-lg py-1 text-white focus:border-amber-400 focus:outline-none font-mono"
                 />
                 <button
                   type="button"
                   onClick={() => handleAdjustPoints(0, 'team1', +1)}
-                  className="w-8 h-8 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold flex items-center justify-center transition"
+                  className="w-8 h-8 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold flex items-center justify-center transition cursor-pointer"
                 >
                   +
                 </button>
@@ -436,70 +588,150 @@ export default function MatchScoreModal({
                 <button
                   type="button"
                   onClick={() => handleAdjustPoints(0, 'team2', -1)}
-                  className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center justify-center transition"
+                  className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center justify-center transition cursor-pointer"
                 >
                   -
                 </button>
                 <input
-                  type="number"
-                  min="0"
-                  value={sets[0]?.team2 ?? 0}
-                  onChange={(e) => handleSetScoreChange(0, 'team2', parseInt(e.target.value, 10) || 0)}
-                  className="w-full text-center text-xl font-bold bg-slate-900 border border-slate-700 rounded-lg py-1 text-white focus:border-amber-400 focus:outline-none"
+                  type="text"
+                  inputMode="numeric"
+                  value={sets[0]?.team2 === 0 ? '' : (sets[0]?.team2 ?? '')}
+                  onChange={(e) => handleSetScoreChange(0, 'team2', e.target.value)}
+                  placeholder="0"
+                  className="w-full text-center text-xl font-bold bg-slate-900 border border-slate-700 rounded-lg py-1 text-white focus:border-amber-400 focus:outline-none font-mono"
                 />
                 <button
                   type="button"
                   onClick={() => handleAdjustPoints(0, 'team2', +1)}
-                  className="w-8 h-8 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold flex items-center justify-center transition"
+                  className="w-8 h-8 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold flex items-center justify-center transition cursor-pointer"
                 >
                   +
                 </button>
               </div>
             </div>
 
-            {/* Quick Set 1 buttons */}
+            {/* Validation Feedback Line for Set 1 */}
+            {((sets[0]?.team1 || 0) > 0 || (sets[0]?.team2 || 0) > 0) && !valSet1.isComplete && (
+              <div className="p-2 bg-red-500/10 border border-red-500/25 rounded-lg text-red-300 text-[11px] flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                <span>{valSet1.error}</span>
+              </div>
+            )}
+
+            {/* Quick Set 1 buttons adapted to selectedTargetPoints */}
             <div className="flex flex-wrap gap-1.5 pt-1">
               <span className="text-[11px] text-slate-400 self-center mr-1">Rapidi:</span>
-              <button
-                type="button"
-                onClick={() => handleQuickScore(0, 25, 20)}
-                className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
-              >
-                25-20
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickScore(0, 25, 23)}
-                className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
-              >
-                25-23
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickScore(0, 20, 25)}
-                className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
-              >
-                20-25
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickScore(0, 23, 25)}
-                className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
-              >
-                23-25
-              </button>
+              {selectedTargetPoints === 25 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickScore(0, 25, 20)}
+                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                  >
+                    25-20
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickScore(0, 25, 23)}
+                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                  >
+                    25-23
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickScore(0, 26, 24)}
+                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                  >
+                    26-24
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickScore(0, 20, 25)}
+                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                  >
+                    20-25
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickScore(0, 23, 25)}
+                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                  >
+                    23-25
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickScore(0, 24, 26)}
+                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                  >
+                    24-26
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickScore(0, 15, 10)}
+                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                  >
+                    15-10
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickScore(0, 15, 13)}
+                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                  >
+                    15-13
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickScore(0, 16, 14)}
+                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                  >
+                    16-14
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickScore(0, 10, 15)}
+                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                  >
+                    10-15
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickScore(0, 13, 15)}
+                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                  >
+                    13-15
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickScore(0, 14, 16)}
+                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                  >
+                    14-16
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Set 2 (if Best of 3) */}
+          {/* SET 2 (if Best of 3) */}
           {isBestOf3 && (
-            <div className="bg-slate-800/30 border border-slate-800 rounded-xl p-4 space-y-3">
+            <div
+              className={`border rounded-xl p-4 space-y-3 transition ${
+                valSet2?.isComplete
+                  ? 'bg-emerald-500/5 border-emerald-500/30'
+                  : (sets[1]?.team1 || 0) > 0 || (sets[1]?.team2 || 0) > 0
+                  ? 'bg-amber-500/5 border-amber-500/30'
+                  : 'bg-slate-800/30 border-slate-800'
+              }`}
+            >
               <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-white">2° Set (a 25 punti)</span>
-                {isSetFinished(sets[1]?.team1 || 0, sets[1]?.team2 || 0, 25) && (
-                  <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                <span className="font-bold text-white">2° Set (Target {selectedTargetPoints} punti)</span>
+                {valSet2?.isComplete && (
+                  <span className="text-emerald-400 font-semibold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Vinto da {sets[1].team1 > sets[1].team2 ? match.team1?.name : match.team2?.name}
+                    Vinto da {valSet2.winner === 'team1' ? team1Name : team2Name}
                   </span>
                 )}
               </div>
@@ -509,21 +741,22 @@ export default function MatchScoreModal({
                   <button
                     type="button"
                     onClick={() => handleAdjustPoints(1, 'team1', -1)}
-                    className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center justify-center transition"
+                    className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center justify-center transition cursor-pointer"
                   >
                     -
                   </button>
                   <input
-                    type="number"
-                    min="0"
-                    value={sets[1]?.team1 ?? 0}
-                    onChange={(e) => handleSetScoreChange(1, 'team1', parseInt(e.target.value, 10) || 0)}
-                    className="w-full text-center text-xl font-bold bg-slate-900 border border-slate-700 rounded-lg py-1 text-white focus:border-amber-400 focus:outline-none"
+                    type="text"
+                    inputMode="numeric"
+                    value={sets[1]?.team1 === 0 ? '' : (sets[1]?.team1 ?? '')}
+                    onChange={(e) => handleSetScoreChange(1, 'team1', e.target.value)}
+                    placeholder="0"
+                    className="w-full text-center text-xl font-bold bg-slate-900 border border-slate-700 rounded-lg py-1 text-white focus:border-amber-400 focus:outline-none font-mono"
                   />
                   <button
                     type="button"
                     onClick={() => handleAdjustPoints(1, 'team1', +1)}
-                    className="w-8 h-8 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold flex items-center justify-center transition"
+                    className="w-8 h-8 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold flex items-center justify-center transition cursor-pointer"
                   >
                     +
                   </button>
@@ -535,74 +768,153 @@ export default function MatchScoreModal({
                   <button
                     type="button"
                     onClick={() => handleAdjustPoints(1, 'team2', -1)}
-                    className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center justify-center transition"
+                    className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center justify-center transition cursor-pointer"
                   >
                     -
                   </button>
                   <input
-                    type="number"
-                    min="0"
-                    value={sets[1]?.team2 ?? 0}
-                    onChange={(e) => handleSetScoreChange(1, 'team2', parseInt(e.target.value, 10) || 0)}
-                    className="w-full text-center text-xl font-bold bg-slate-900 border border-slate-700 rounded-lg py-1 text-white focus:border-amber-400 focus:outline-none"
+                    type="text"
+                    inputMode="numeric"
+                    value={sets[1]?.team2 === 0 ? '' : (sets[1]?.team2 ?? '')}
+                    onChange={(e) => handleSetScoreChange(1, 'team2', e.target.value)}
+                    placeholder="0"
+                    className="w-full text-center text-xl font-bold bg-slate-900 border border-slate-700 rounded-lg py-1 text-white focus:border-amber-400 focus:outline-none font-mono"
                   />
                   <button
                     type="button"
                     onClick={() => handleAdjustPoints(1, 'team2', +1)}
-                    className="w-8 h-8 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold flex items-center justify-center transition"
+                    className="w-8 h-8 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold flex items-center justify-center transition cursor-pointer"
                   >
                     +
                   </button>
                 </div>
               </div>
 
+              {/* Validation Feedback Line for Set 2 */}
+              {((sets[1]?.team1 || 0) > 0 || (sets[1]?.team2 || 0) > 0) && !valSet2?.isComplete && (
+                <div className="p-2 bg-red-500/10 border border-red-500/25 rounded-lg text-red-300 text-[11px] flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                  <span>{valSet2?.error}</span>
+                </div>
+              )}
+
+              {/* Quick Set 2 buttons */}
               <div className="flex flex-wrap gap-1.5 pt-1">
                 <span className="text-[11px] text-slate-400 self-center mr-1">Rapidi:</span>
-                <button
-                  type="button"
-                  onClick={() => handleQuickScore(1, 25, 20)}
-                  className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
-                >
-                  25-20
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickScore(1, 25, 23)}
-                  className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
-                >
-                  25-23
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickScore(1, 20, 25)}
-                  className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
-                >
-                  20-25
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickScore(1, 23, 25)}
-                  className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
-                >
-                  23-25
-                </button>
+                {selectedTargetPoints === 25 ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickScore(1, 25, 20)}
+                      className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                    >
+                      25-20
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickScore(1, 25, 23)}
+                      className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                    >
+                      25-23
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickScore(1, 26, 24)}
+                      className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                    >
+                      26-24
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickScore(1, 20, 25)}
+                      className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                    >
+                      20-25
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickScore(1, 23, 25)}
+                      className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                    >
+                      23-25
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickScore(1, 24, 26)}
+                      className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                    >
+                      24-26
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickScore(1, 15, 10)}
+                      className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                    >
+                      15-10
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickScore(1, 15, 13)}
+                      className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                    >
+                      15-13
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickScore(1, 16, 14)}
+                      className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                    >
+                      16-14
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickScore(1, 10, 15)}
+                      className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                    >
+                      10-15
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickScore(1, 13, 15)}
+                      className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                    >
+                      13-15
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickScore(1, 14, 16)}
+                      className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition cursor-pointer"
+                    >
+                      14-16
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
 
-          {/* Set 3 / Tie-Break (if Best of 3 and tied 1-1) */}
-          {isBestOf3 && (
+          {/* SET 3 / TIE-BREAK (if Best of 3 and tied 1-1) */}
+          {isThirdSetNeeded && (
             <div
-              className={`border rounded-xl p-4 space-y-3 ${
-                isThirdSetNeeded ? 'bg-amber-500/5 border-amber-500/30' : 'bg-slate-800/20 border-slate-800/60 opacity-80'
+              className={`border rounded-xl p-4 space-y-3 transition ${
+                valSet3?.isComplete
+                  ? 'bg-emerald-500/5 border-emerald-500/30'
+                  : (sets[2]?.team1 || 0) > 0 || (sets[2]?.team2 || 0) > 0
+                  ? 'bg-amber-500/5 border-amber-500/30'
+                  : 'bg-amber-500/5 border-amber-500/30'
               }`}
             >
               <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-amber-400">3° Set / Tie-Break (a {tieBreakTarget} punti)</span>
-                {isSetFinished(sets[2]?.team1 || 0, sets[2]?.team2 || 0, tieBreakTarget) && (
-                  <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                <span className="font-bold text-amber-400">
+                  3° Set / Tie-Break (Target {tieBreakTarget} punti)
+                </span>
+                {valSet3?.isComplete && (
+                  <span className="text-emerald-400 font-semibold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Vinto da {sets[2].team1 > sets[2].team2 ? match.team1?.name : match.team2?.name}
+                    Vinto da {valSet3.winner === 'team1' ? team1Name : team2Name}
                   </span>
                 )}
               </div>
@@ -612,21 +924,22 @@ export default function MatchScoreModal({
                   <button
                     type="button"
                     onClick={() => handleAdjustPoints(2, 'team1', -1)}
-                    className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center justify-center transition"
+                    className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center justify-center transition cursor-pointer"
                   >
                     -
                   </button>
                   <input
-                    type="number"
-                    min="0"
-                    value={sets[2]?.team1 ?? 0}
-                    onChange={(e) => handleSetScoreChange(2, 'team1', parseInt(e.target.value, 10) || 0)}
-                    className="w-full text-center text-xl font-bold bg-slate-900 border border-slate-700 rounded-lg py-1 text-white focus:border-amber-400 focus:outline-none"
+                    type="text"
+                    inputMode="numeric"
+                    value={sets[2]?.team1 === 0 ? '' : (sets[2]?.team1 ?? '')}
+                    onChange={(e) => handleSetScoreChange(2, 'team1', e.target.value)}
+                    placeholder="0"
+                    className="w-full text-center text-xl font-bold bg-slate-900 border border-slate-700 rounded-lg py-1 text-white focus:border-amber-400 focus:outline-none font-mono"
                   />
                   <button
                     type="button"
                     onClick={() => handleAdjustPoints(2, 'team1', +1)}
-                    className="w-8 h-8 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold flex items-center justify-center transition"
+                    className="w-8 h-8 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold flex items-center justify-center transition cursor-pointer"
                   >
                     +
                   </button>
@@ -638,25 +951,81 @@ export default function MatchScoreModal({
                   <button
                     type="button"
                     onClick={() => handleAdjustPoints(2, 'team2', -1)}
-                    className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center justify-center transition"
+                    className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center justify-center transition cursor-pointer"
                   >
                     -
                   </button>
                   <input
-                    type="number"
-                    min="0"
-                    value={sets[2]?.team2 ?? 0}
-                    onChange={(e) => handleSetScoreChange(2, 'team2', parseInt(e.target.value, 10) || 0)}
-                    className="w-full text-center text-xl font-bold bg-slate-900 border border-slate-700 rounded-lg py-1 text-white focus:border-amber-400 focus:outline-none"
+                    type="text"
+                    inputMode="numeric"
+                    value={sets[2]?.team2 === 0 ? '' : (sets[2]?.team2 ?? '')}
+                    onChange={(e) => handleSetScoreChange(2, 'team2', e.target.value)}
+                    placeholder="0"
+                    className="w-full text-center text-xl font-bold bg-slate-900 border border-slate-700 rounded-lg py-1 text-white focus:border-amber-400 focus:outline-none font-mono"
                   />
                   <button
                     type="button"
                     onClick={() => handleAdjustPoints(2, 'team2', +1)}
-                    className="w-8 h-8 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold flex items-center justify-center transition"
+                    className="w-8 h-8 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold flex items-center justify-center transition cursor-pointer"
                   >
                     +
                   </button>
                 </div>
+              </div>
+
+              {/* Validation Feedback Line for Set 3 */}
+              {((sets[2]?.team1 || 0) > 0 || (sets[2]?.team2 || 0) > 0) && !valSet3?.isComplete && (
+                <div className="p-2 bg-red-500/10 border border-red-500/25 rounded-lg text-red-300 text-[11px] flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                  <span>{valSet3?.error}</span>
+                </div>
+              )}
+
+              {/* Quick Set 3 / Tie-Break buttons (15 points target) */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <span className="text-[11px] text-amber-400 font-semibold self-center mr-1">TB Rapidi:</span>
+                <button
+                  type="button"
+                  onClick={() => handleQuickScore(2, 15, 10)}
+                  className="text-[11px] bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded transition cursor-pointer"
+                >
+                  15-10
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickScore(2, 15, 13)}
+                  className="text-[11px] bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded transition cursor-pointer"
+                >
+                  15-13
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickScore(2, 16, 14)}
+                  className="text-[11px] bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded transition cursor-pointer"
+                >
+                  16-14
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickScore(2, 10, 15)}
+                  className="text-[11px] bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded transition cursor-pointer"
+                >
+                  10-15
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickScore(2, 13, 15)}
+                  className="text-[11px] bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded transition cursor-pointer"
+                >
+                  13-15
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickScore(2, 14, 16)}
+                  className="text-[11px] bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded transition cursor-pointer"
+                >
+                  14-16
+                </button>
               </div>
             </div>
           )}
@@ -668,10 +1037,10 @@ export default function MatchScoreModal({
             <Trophy className="w-5 h-5 text-emerald-400 shrink-0" />
             <div className="text-xs">
               <span className="font-bold text-emerald-300 block">
-                Vincitore: {winnerId === match.team1?.id ? match.team1?.name : match.team2?.name} ({t1SetsWon} - {t2SetsWon})
+                Vincitore: {winnerId === match.team1?.id ? team1Name : team2Name} ({t1SetsWon} - {t2SetsWon})
               </span>
               <span className="text-slate-400">
-                Il risultato verrà salvato e la classifica/tabellone si aggiornerà automaticamente.
+                Punteggio verificato e conforme alle regole. Il risultato aggiornerà automaticamente la classifica e il tabellone.
               </span>
             </div>
           </div>

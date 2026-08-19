@@ -46,6 +46,7 @@ export default function TeamsTab({
   onGenerateGroups,
   onShowToast,
 }: TeamsTabProps) {
+  const hasGroupsGenerated = teams.some((t) => !!t.group);
   const [name, setName] = useState('');
   const [level, setLevel] = useState<TeamLevel>('Intermedio');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -128,9 +129,6 @@ export default function TeamsTab({
     try {
       await onUpdateTeam(editingTeam.id, cleanName, editLevel, editingTeam.players);
       setEditingTeam(null);
-      if (onShowToast) {
-        onShowToast(`Squadra modificata in "${cleanName}" (${editLevel}).`, 'success', 'Modifica Salvata');
-      }
     } catch (err: any) {
       setEditError(err?.message || 'Errore durante la modifica.');
     } finally {
@@ -179,12 +177,13 @@ export default function TeamsTab({
     }
   };
 
-  // Sort players descending by level: Nazionale -> Regionale -> Provinciale -> CSI
+  // Sort players descending by level: Nazionale -> Regionale -> Provinciale -> CSI -> Non Tesserato
   const PLAYER_LEVEL_WEIGHTS: Record<PlayerLevel, number> = {
-    Nazionale: 4,
-    Regionale: 3,
-    Provinciale: 2,
-    CSI: 1,
+    Nazionale: 5,
+    Regionale: 4,
+    Provinciale: 3,
+    CSI: 2,
+    'Non Tesserato': 1,
   };
 
   const sortPlayersByLevel = (playersList: Player[]): Player[] => {
@@ -225,10 +224,15 @@ export default function TeamsTab({
           dotClass: 'bg-emerald-400',
         };
       case 'CSI':
-      default:
         return {
           badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
           dotClass: 'bg-amber-400',
+        };
+      case 'Non Tesserato':
+      default:
+        return {
+          badgeClass: 'bg-slate-700/50 text-slate-300 border-slate-600/50',
+          dotClass: 'bg-slate-400',
         };
     }
   };
@@ -275,18 +279,33 @@ export default function TeamsTab({
                 className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-amber-400 text-xs font-bold rounded-2xl border border-amber-500/30 hover:border-amber-500/60 flex items-center gap-2 transition cursor-pointer shadow-sm"
               >
                 <Sparkles className="w-4 h-4 text-amber-400" />
-                <span>Carica 15 Squadre Demo</span>
+                <span>Carica 15 Squadre Ufficiali</span>
               </button>
             )}
 
-            {teams.length === 15 && (
+            {teams.length === 15 && isAdmin && (
               <button
                 id="generate-groups-btn"
-                onClick={onGenerateGroups}
-                className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black rounded-2xl shadow-lg shadow-amber-500/20 flex items-center gap-2 transition cursor-pointer text-xs uppercase tracking-wider"
+                disabled={hasGroupsGenerated}
+                onClick={hasGroupsGenerated ? undefined : onGenerateGroups}
+                className={`px-5 py-2.5 rounded-2xl flex items-center gap-2 transition text-xs uppercase tracking-wider font-black ${
+                  hasGroupsGenerated
+                    ? 'bg-zinc-900 text-zinc-500 border border-zinc-800 cursor-not-allowed opacity-60'
+                    : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black shadow-lg shadow-amber-500/20 cursor-pointer'
+                }`}
+                title={hasGroupsGenerated ? 'I 5 gironi sono già stati generati' : 'Genera i 5 gironi'}
               >
-                <Layers className="w-4 h-4" />
-                <span>Genera i 5 gironi</span>
+                {hasGroupsGenerated ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Gironi già generati</span>
+                  </>
+                ) : (
+                  <>
+                    <Layers className="w-4 h-4" />
+                    <span>Genera i 5 gironi</span>
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -443,7 +462,7 @@ export default function TeamsTab({
                 className="px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-amber-400 text-sm font-semibold rounded-2xl border border-zinc-700 inline-flex items-center gap-2 transition cursor-pointer"
               >
                 <Sparkles className="w-4 h-4" />
-                Carica 15 Squadre Demo per il Torneo
+                Carica 15 Squadre Ufficiali e Roster
               </button>
             )}
           </div>
@@ -473,15 +492,9 @@ export default function TeamsTab({
                       )}
                     </div>
 
-                    {/* Team Name & Group */}
+                    {/* Team Name */}
                     <div>
                       <h4 className="text-lg font-black text-white leading-snug">{team.name}</h4>
-                      {team.group && (
-                        <div className="inline-flex items-center gap-1.5 text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/25 px-2.5 py-0.5 rounded-lg font-bold mt-1.5">
-                          <Layers className="w-3 h-3" />
-                          <span>{team.group}</span>
-                        </div>
-                      )}
                     </div>
 
                     {/* Athletes / Roster Preview */}
@@ -640,8 +653,8 @@ export default function TeamsTab({
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
                         Livello Tecnico *
                       </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {(['Nazionale', 'Regionale', 'Provinciale', 'CSI'] as PlayerLevel[]).map((lvl) => {
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                        {(['Nazionale', 'Regionale', 'Provinciale', 'CSI', 'Non Tesserato'] as PlayerLevel[]).map((lvl) => {
                           const isSelected = newPlayerLevel === lvl;
                           const badge = getPlayerLevelBadge(lvl);
                           return (

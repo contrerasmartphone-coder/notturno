@@ -26,6 +26,7 @@ import {
   Sparkles,
   Bookmark,
   Check,
+  FastForward,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ConfirmModal from './ConfirmModal';
@@ -42,7 +43,9 @@ interface SettingsTabProps {
     durationSingleSet: number,
     durationBestOf3: number,
     courtName: string,
-    quarterFinalsMode: QuarterFinalsMode
+    quarterFinalsMode: QuarterFinalsMode,
+    durationBestOf3_15: number,
+    quarterFinalsStartTime?: string
   ) => Promise<void>;
   onCreateBackup: (name: string) => Promise<void>;
   onRestoreBackup: (backup: TournamentBackup) => Promise<void>;
@@ -66,11 +69,15 @@ export default function SettingsTab({
   onShowToast,
 }: SettingsTabProps) {
   const [startTime, setStartTime] = useState(config.startTime || '20:30');
+  const [quarterFinalsStartTime, setQuarterFinalsStartTime] = useState(config.quarterFinalsStartTime || '');
   const [durationSingleSet, setDurationSingleSet] = useState<number>(
     config.durationSingleSetMinutes || config.matchDurationMinutes || 25
   );
   const [durationBestOf3, setDurationBestOf3] = useState<number>(
     config.durationBestOf3Minutes || 50
+  );
+  const [durationBestOf3_15, setDurationBestOf3_15] = useState<number>(
+    config.durationBestOf3_15Minutes || 35
   );
   const [courtName, setCourtName] = useState(config.courtName || 'Campo Palamelina');
   const [quarterFinalsMode, setQuarterFinalsMode] = useState<QuarterFinalsMode>(
@@ -90,8 +97,10 @@ export default function SettingsTab({
   // Sync state when config prop changes
   useEffect(() => {
     if (config.startTime) setStartTime(config.startTime);
+    if (config.quarterFinalsStartTime !== undefined) setQuarterFinalsStartTime(config.quarterFinalsStartTime);
     if (config.durationSingleSetMinutes) setDurationSingleSet(config.durationSingleSetMinutes);
     if (config.durationBestOf3Minutes) setDurationBestOf3(config.durationBestOf3Minutes);
+    if (config.durationBestOf3_15Minutes) setDurationBestOf3_15(config.durationBestOf3_15Minutes);
     if (config.courtName) setCourtName(config.courtName);
     if (config.quarterFinalsMode) setQuarterFinalsMode(config.quarterFinalsMode);
   }, [config]);
@@ -109,12 +118,17 @@ export default function SettingsTab({
     }
 
     if (durationSingleSet < 5 || durationSingleSet > 180) {
-      onShowToast('La durata del singolo set deve essere compresa tra 5 e 180 minuti.', 'warning', 'Durata Non Valida');
+      onShowToast('La durata del singolo match a 25 deve essere compresa tra 5 e 180 minuti.', 'warning', 'Durata Non Valida');
       return;
     }
 
     if (durationBestOf3 < 10 || durationBestOf3 > 240) {
-      onShowToast('La durata delle partite 2 su 3 deve essere compresa tra 10 e 240 minuti.', 'warning', 'Durata Non Valida');
+      onShowToast('La durata delle partite 2 su 3 a 25 con TB a 15 deve essere compresa tra 10 e 240 minuti.', 'warning', 'Durata Non Valida');
+      return;
+    }
+
+    if (durationBestOf3_15 < 5 || durationBestOf3_15 > 240) {
+      onShowToast('La durata delle partite 2 su 3 a 15 deve essere compresa tra 5 e 240 minuti.', 'warning', 'Durata Non Valida');
       return;
     }
 
@@ -123,8 +137,10 @@ export default function SettingsTab({
       const updatedConfig: TournamentConfig = {
         ...config,
         startTime,
+        quarterFinalsStartTime,
         durationSingleSetMinutes: durationSingleSet,
         durationBestOf3Minutes: durationBestOf3,
+        durationBestOf3_15Minutes: durationBestOf3_15,
         courtCount: 1,
         courtName: courtName.trim() || 'Campo Palamelina',
         quarterFinalsMode,
@@ -147,10 +163,18 @@ export default function SettingsTab({
         durationSingleSet,
         durationBestOf3,
         courtName.trim() || 'Campo Palamelina',
-        quarterFinalsMode
+        quarterFinalsMode,
+        durationBestOf3_15,
+        quarterFinalsStartTime
       );
       onShowToast(
-        `Orari ricalcolati su Campo Palamelina: inizio ore ${startTime}, durata set ${durationSingleSet}m / ${durationBestOf3}m.`,
+        `Orari ricalcolati su Campo Palamelina: inizio ore ${startTime}, formula quarti "${
+          quarterFinalsMode === 'best_of_3_15'
+            ? '2 su 3 a 15'
+            : quarterFinalsMode === 'best_of_3_25_tb15' || quarterFinalsMode === 'best_of_3_tb15'
+            ? '2 su 3 a 25 (TB 15)'
+            : 'Singolo a 25'
+        }".`,
         'success',
         'Orari Partite Aggiornati'
       );
@@ -214,51 +238,69 @@ export default function SettingsTab({
   // Calculations for Tournament Timeline
   const startMin = parseTimeToMinutes(startTime);
 
-  // 15 matches Gironi (all single set)
+  // 15 matches Gironi (all single set a 25)
   const gironiDuration = 15 * durationSingleSet;
   const endGironiMin = startMin + gironiDuration;
 
-  // 7 matches Ottavi (single set)
+  // 7 matches Ottavi (single set a 25)
   const ottaviDuration = 7 * durationSingleSet;
   const endOttaviMin = endGironiMin + ottaviDuration;
 
-  // 4 matches Quarti (single set or best of 3)
-  const qfMatchDuration = quarterFinalsMode === 'best_of_3_tb15' ? durationBestOf3 : durationSingleSet;
+  // 4 matches Quarti (single set 25 OR best of 3 a 25 TB 15 OR best of 3 a 15)
+  const startQuartiMin = quarterFinalsStartTime ? parseTimeToMinutes(quarterFinalsStartTime) : endOttaviMin;
+  let qfMatchDuration = durationSingleSet;
+  let qfFormulaLabel = 'Set Singolo a 25';
+  if (quarterFinalsMode === 'best_of_3_25_tb15' || quarterFinalsMode === 'best_of_3_tb15') {
+    qfMatchDuration = durationBestOf3;
+    qfFormulaLabel = '2 Set su 3 a 25 (TB a 15)';
+  } else if (quarterFinalsMode === 'best_of_3_15') {
+    qfMatchDuration = durationBestOf3_15;
+    qfFormulaLabel = '2 Set su 3 a 15';
+  }
   const quartiDuration = 4 * qfMatchDuration;
-  const endQuartiMin = endOttaviMin + quartiDuration;
+  const endQuartiMin = startQuartiMin + quartiDuration;
 
-  // 2 matches Semifinali (2 su 3)
+  // 2 matches Semifinali (2 su 3 a 25 con TB a 15)
   const semiDuration = 2 * durationBestOf3;
   const endSemiMin = endQuartiMin + semiDuration;
 
-  // 2 matches Finali: 3°-4° (single set) + 1°-2° (2 su 3)
-  const finaliDuration = durationSingleSet + durationBestOf3;
+  // Grand Finale 1°-2° (2 su 3 a 25 con TB a 15) - Finale 3°-4° rimossa
+  const finaliDuration = durationBestOf3;
   const endTourneyMin = endSemiMin + finaliDuration;
 
-  const totalTournamentMinutes = gironiDuration + ottaviDuration + quartiDuration + semiDuration + finaliDuration;
+  // Total Tournament time from start to end (handling past-midnight wrap)
+  let rawTotalMin = endTourneyMin - startMin;
+  if (rawTotalMin < 0) {
+    rawTotalMin += 1440;
+  }
+  const totalTournamentMinutes = rawTotalMin;
   const totalHours = Math.floor(totalTournamentMinutes / 60);
   const totalRemainingMinutes = totalTournamentMinutes % 60;
 
-  const totalMatchesCount = 30; // 15 gironi + 7 ottavi + 4 quarti + 2 semifinali + 2 finali
+  const totalMatchesCount = 29; // 15 gironi + 7 ottavi + 4 quarti + 2 semifinali + 1 finale
   const existingMatchesCount = matches.length;
+
+  const ottaviMatches = matches.filter(m => m.round === 2);
+  const allOttaviCompleted = ottaviMatches.length > 0 && ottaviMatches.every(m => m.status === 'completed');
+  
+  const quartiMatches = matches.filter(m => m.round === 3);
+  const quartiStarted = quartiMatches.some(m => m.status !== 'scheduled');
 
   return (
     <div id="settings-tab-root" className="space-y-8">
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 border border-slate-800 p-6 rounded-3xl">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-2xl border border-amber-500/20">
-              <Settings className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-white tracking-tight">
-                Pannello Amministrazione & Impostazioni Torneo
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-400">
-                Orari, durate partite, vincolo di gioco su <strong className="text-amber-300">Campo Palamelina</strong> e gestione salvataggi di backup.
-              </p>
-            </div>
+        <div className="flex items-center gap-2.5">
+          <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-2xl border border-amber-500/20">
+            <Settings className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white tracking-tight">
+              Pannello Amministrazione & Impostazioni Torneo
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400">
+              Campo di gara: <strong className="text-amber-300">Campo Palamelina</strong>
+            </p>
           </div>
         </div>
 
@@ -301,220 +343,218 @@ export default function SettingsTab({
                 </span>
                 <span className="text-xs text-slate-400 font-normal">Formato 24h</span>
               </label>
-              <div className="flex items-center gap-3">
-                <input
-                  id="input-start-time"
-                  type="time"
-                  disabled={!isAdmin}
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-40 bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-2xl px-4 py-2.5 text-base font-mono font-bold text-white outline-none disabled:opacity-60"
-                />
-                <div className="flex flex-wrap gap-1.5">
-                  {['19:30', '20:00', '20:30', '21:00', '21:30'].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      disabled={!isAdmin}
-                      onClick={() => setStartTime(preset)}
-                      className={`px-2.5 py-1 text-xs font-mono font-semibold rounded-lg border transition cursor-pointer disabled:opacity-40 ${
-                        startTime === preset
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                          : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <p className="text-xs text-slate-500">
-                Orario di inizio della 1ª gara del Girone A su Campo Palamelina.
-              </p>
+              <input
+                id="input-start-time"
+                type="time"
+                disabled={!isAdmin}
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full sm:w-48 bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-2xl px-4 py-2.5 text-base font-mono font-bold text-white outline-none disabled:opacity-60"
+              />
             </div>
 
             <div className="border-t border-slate-800/80 my-4" />
 
-            {/* 2. Durata Partita Singolo Set */}
+            {/* 2. DURATA PARTITA SINGOLO MATCH A 25 (MINUTI) */}
             <div className="space-y-2">
               <label htmlFor="input-single-set-duration" className="block text-sm font-bold text-white flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <Timer className="w-4 h-4 text-amber-400" />
-                  Durata Partita Singolo Set (a 25 punti)
+                  Durata Partita Singolo Match a 25 (minuti)
                 </span>
-                <span className="text-xs text-amber-400 font-mono font-bold">{durationSingleSet} minuti</span>
+                <span className="text-xs text-slate-400 font-mono">Gironi, Ottavi</span>
               </label>
-              <div className="flex items-center gap-3">
-                <input
-                  id="input-single-set-duration"
-                  type="number"
-                  min="5"
-                  max="120"
-                  step="5"
-                  disabled={!isAdmin}
-                  value={durationSingleSet}
-                  onChange={(e) => setDurationSingleSet(Number(e.target.value) || 25)}
-                  className="w-32 bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-2xl px-4 py-2.5 text-base font-mono font-bold text-white outline-none disabled:opacity-60"
-                />
-                <div className="flex flex-wrap gap-1.5">
-                  {[15, 20, 25, 30, 35].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      disabled={!isAdmin}
-                      onClick={() => setDurationSingleSet(preset)}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition cursor-pointer disabled:opacity-40 ${
-                        durationSingleSet === preset
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                          : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                      }`}
-                    >
-                      {preset} min
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <p className="text-xs text-slate-400">
-                Utilizzato per le <strong>15 gare dei Gironi</strong>, i <strong>7 Ottavi di finale</strong> e la <strong>Finale 3°-4° posto</strong>.
-              </p>
+              <input
+                id="input-single-set-duration"
+                type="number"
+                min="5"
+                max="120"
+                step="5"
+                disabled={!isAdmin}
+                value={durationSingleSet}
+                onChange={(e) => setDurationSingleSet(Number(e.target.value) || 25)}
+                className="w-full sm:w-48 bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-2xl px-4 py-2.5 text-base font-mono font-bold text-white outline-none disabled:opacity-60"
+              />
             </div>
 
             <div className="border-t border-slate-800/80 my-4" />
 
-            {/* 3. Durata Partita 2 Set su 3 */}
+            {/* 3. DURATA PARTITA 2 SET SU 3 A 25 CON TIE BREAK A 15 (MINUTI) */}
             <div className="space-y-2">
               <label htmlFor="input-best-of-3-duration" className="block text-sm font-bold text-white flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-amber-400" />
-                  Durata Partita 2 Set su 3 (TB a 25 punti)
+                  Durata Partita 2 Set su 3 a 25 con Tie Break a 15 (minuti)
                 </span>
-                <span className="text-xs text-amber-400 font-mono font-bold">{durationBestOf3} minuti</span>
+                <span className="text-xs text-slate-400 font-mono">Semifinali, Grand Finale 1°-2°</span>
               </label>
-              <div className="flex items-center gap-3">
-                <input
-                  id="input-best-of-3-duration"
-                  type="number"
-                  min="10"
-                  max="180"
-                  step="5"
-                  disabled={!isAdmin}
-                  value={durationBestOf3}
-                  onChange={(e) => setDurationBestOf3(Number(e.target.value) || 50)}
-                  className="w-32 bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-2xl px-4 py-2.5 text-base font-mono font-bold text-white outline-none disabled:opacity-60"
-                />
-                <div className="flex flex-wrap gap-1.5">
-                  {[40, 45, 50, 60].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      disabled={!isAdmin}
-                      onClick={() => setDurationBestOf3(preset)}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition cursor-pointer disabled:opacity-40 ${
-                        durationBestOf3 === preset
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                          : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                      }`}
-                    >
-                      {preset} min
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <p className="text-xs text-slate-400">
-                Utilizzato per le <strong>2 Semifinali</strong> e la <strong>Grand Finale 1°-2° posto</strong>.
-              </p>
+              <input
+                id="input-best-of-3-duration"
+                type="number"
+                min="10"
+                max="180"
+                step="5"
+                disabled={!isAdmin}
+                value={durationBestOf3}
+                onChange={(e) => setDurationBestOf3(Number(e.target.value) || 50)}
+                className="w-full sm:w-48 bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-2xl px-4 py-2.5 text-base font-mono font-bold text-white outline-none disabled:opacity-60"
+              />
+            </div>
+
+            <div className="border-t border-slate-800/80 my-4" />
+
+            {/* 4. DURATA PARTITA 2 SET SU 3 A 15 (MINUTI) */}
+            <div className="space-y-2">
+              <label htmlFor="input-best-of-3-15-duration" className="block text-sm font-bold text-white flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <FastForward className="w-4 h-4 text-amber-400" />
+                  Durata Partita 2 Set su 3 a 15 (minuti)
+                </span>
+                <span className="text-xs text-slate-400 font-mono">Opzionale per Quarti</span>
+              </label>
+              <input
+                id="input-best-of-3-15-duration"
+                type="number"
+                min="5"
+                max="180"
+                step="5"
+                disabled={!isAdmin}
+                value={durationBestOf3_15}
+                onChange={(e) => setDurationBestOf3_15(Number(e.target.value) || 35)}
+                className="w-full sm:w-48 bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-2xl px-4 py-2.5 text-base font-mono font-bold text-white outline-none disabled:opacity-60"
+              />
             </div>
           </div>
 
-          {/* Section 2: Campo Palamelina & Formula Quarti */}
-          <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl space-y-6">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-              <Layers className="w-4 h-4 text-amber-400" />
-              Campo di Gioco & Formula Quarti
-            </h3>
-
-            {/* Campo Palamelina Card */}
-            <div className="bg-slate-950 border border-amber-500/30 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-sm text-center px-1">
-                  PALA
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-white">Campo Palamelina</span>
-                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full font-bold">
-                      Sequenza Continua
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400">
-                    Tutte le 30 partite del torneo si disputano consecutivamente su <strong>Campo Palamelina</strong>.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  id="input-court-name"
-                  type="text"
-                  disabled={!isAdmin}
-                  value={courtName}
-                  onChange={(e) => setCourtName(e.target.value)}
-                  placeholder="Nome Campo (es. Campo Palamelina)"
-                  className="bg-slate-900 border border-slate-700 text-xs text-white px-3 py-1.5 rounded-xl outline-none focus:border-amber-500 w-44 disabled:opacity-60 font-semibold"
-                />
-              </div>
+          {/* Section 2: Formula Quarti di Finale */}
+          <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl space-y-4">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <Layers className="w-4 h-4 text-amber-400" />
+                Formula Quarti di Finale (4 gare)
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Scegli la formula di gioco per i 4 Quarti di Finale tra le tre opzioni di durata configurate:
+              </p>
             </div>
 
-            {/* Formula Quarti di Finale */}
-            <div className="space-y-3">
-              <label className="block text-sm font-bold text-white flex items-center justify-between">
-                <span>Formula Quarti di Finale (4 gare)</span>
-                <span className="text-xs text-slate-400">Durata: {qfMatchDuration} min a gara</span>
-              </label>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  disabled={!isAdmin}
-                  onClick={() => setQuarterFinalsMode('single_set_25')}
-                  className={`p-3.5 rounded-2xl border text-left transition cursor-pointer disabled:opacity-50 ${
-                    quarterFinalsMode === 'single_set_25'
-                      ? 'bg-amber-500/15 border-amber-500/50 text-white'
-                      : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white">Set Singolo a 25 punti</span>
-                    {quarterFinalsMode === 'single_set_25' && (
-                      <CheckCircle2 className="w-4 h-4 text-amber-400" />
-                    )}
+            <div className="grid grid-cols-1 gap-3">
+              {/* Option 1: Singolo Match a 25 */}
+              <button
+                type="button"
+                id="qf-option-single-25"
+                disabled={!isAdmin}
+                onClick={() => setQuarterFinalsMode('single_set_25')}
+                className={`p-4 rounded-2xl border text-left transition cursor-pointer disabled:opacity-50 ${
+                  quarterFinalsMode === 'single_set_25'
+                    ? 'bg-amber-500/15 border-amber-500/50 text-white shadow-lg shadow-amber-500/5'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${
+                      quarterFinalsMode === 'single_set_25'
+                        ? 'bg-amber-500 text-slate-950'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      1
+                    </div>
+                    <span className="text-sm font-bold text-white">
+                      Singolo Match a 25 (minuti)
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Durata rapida ({durationSingleSet} min) • Totale 4 Quarti: {4 * durationSingleSet} min
-                  </p>
-                </button>
+                  {quarterFinalsMode === 'single_set_25' ? (
+                    <CheckCircle2 className="w-5 h-5 text-amber-400" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full border border-slate-700" />
+                  )}
+                </div>
+                <div className="flex items-center gap-3 mt-2 pl-8.5 text-xs text-slate-400">
+                  <span className="bg-slate-900 px-2.5 py-0.5 rounded-md border border-slate-800 font-mono text-amber-300">
+                    ⏱️ Durata: {durationSingleSet} min a gara
+                  </span>
+                  <span>4 Quarti = {4 * durationSingleSet} min totali</span>
+                </div>
+              </button>
 
-                <button
-                  type="button"
-                  disabled={!isAdmin}
-                  onClick={() => setQuarterFinalsMode('best_of_3_tb15')}
-                  className={`p-3.5 rounded-2xl border text-left transition cursor-pointer disabled:opacity-50 ${
-                    quarterFinalsMode === 'best_of_3_tb15'
-                      ? 'bg-amber-500/15 border-amber-500/50 text-white'
-                      : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white">2 Set su 3 (TB a 15)</span>
-                    {quarterFinalsMode === 'best_of_3_tb15' && (
-                      <CheckCircle2 className="w-4 h-4 text-amber-400" />
-                    )}
+              {/* Option 2: 2 Set su 3 a 25 con TB a 15 */}
+              <button
+                type="button"
+                id="qf-option-best-of-3-25"
+                disabled={!isAdmin}
+                onClick={() => setQuarterFinalsMode('best_of_3_25_tb15')}
+                className={`p-4 rounded-2xl border text-left transition cursor-pointer disabled:opacity-50 ${
+                  quarterFinalsMode === 'best_of_3_25_tb15' || quarterFinalsMode === 'best_of_3_tb15'
+                    ? 'bg-amber-500/15 border-amber-500/50 text-white shadow-lg shadow-amber-500/5'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${
+                      quarterFinalsMode === 'best_of_3_25_tb15' || quarterFinalsMode === 'best_of_3_tb15'
+                        ? 'bg-amber-500 text-slate-950'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      2
+                    </div>
+                    <span className="text-sm font-bold text-white">
+                      2 Set su 3 a 25 con Tie Break a 15 (minuti)
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Formula estesa ({durationBestOf3} min) • Totale 4 Quarti: {4 * durationBestOf3} min
-                  </p>
-                </button>
-              </div>
+                  {quarterFinalsMode === 'best_of_3_25_tb15' || quarterFinalsMode === 'best_of_3_tb15' ? (
+                    <CheckCircle2 className="w-5 h-5 text-amber-400" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full border border-slate-700" />
+                  )}
+                </div>
+                <div className="flex items-center gap-3 mt-2 pl-8.5 text-xs text-slate-400">
+                  <span className="bg-slate-900 px-2.5 py-0.5 rounded-md border border-slate-800 font-mono text-amber-300">
+                    ⏱️ Durata: {durationBestOf3} min a gara
+                  </span>
+                  <span>4 Quarti = {4 * durationBestOf3} min totali</span>
+                </div>
+              </button>
+
+              {/* Option 3: 2 Set su 3 a 15 */}
+              <button
+                type="button"
+                id="qf-option-best-of-3-15"
+                disabled={!isAdmin}
+                onClick={() => setQuarterFinalsMode('best_of_3_15')}
+                className={`p-4 rounded-2xl border text-left transition cursor-pointer disabled:opacity-50 ${
+                  quarterFinalsMode === 'best_of_3_15'
+                    ? 'bg-amber-500/15 border-amber-500/50 text-white shadow-lg shadow-amber-500/5'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${
+                      quarterFinalsMode === 'best_of_3_15'
+                        ? 'bg-amber-500 text-slate-950'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      3
+                    </div>
+                    <span className="text-sm font-bold text-white">
+                      2 Set su 3 a 15 (minuti)
+                    </span>
+                  </div>
+                  {quarterFinalsMode === 'best_of_3_15' ? (
+                    <CheckCircle2 className="w-5 h-5 text-amber-400" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full border border-slate-700" />
+                  )}
+                </div>
+                <div className="flex items-center gap-3 mt-2 pl-8.5 text-xs text-slate-400">
+                  <span className="bg-slate-900 px-2.5 py-0.5 rounded-md border border-slate-800 font-mono text-amber-300">
+                    ⏱️ Durata: {durationBestOf3_15} min a gara
+                  </span>
+                  <span>4 Quarti = {4 * durationBestOf3_15} min totali</span>
+                </div>
+              </button>
             </div>
           </div>
 
@@ -532,16 +572,33 @@ export default function SettingsTab({
             </button>
 
             {existingMatchesCount > 0 && (
-              <button
-                id="apply-schedule-btn"
-                type="button"
-                disabled={!isAdmin || isApplyingSchedule}
-                onClick={() => setIsConfirmApplyOpen(true)}
-                className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold rounded-2xl text-sm border border-slate-700 flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${isApplyingSchedule ? 'animate-spin' : ''}`} />
-                <span>Ricalcola Orari su Gare Esistenti</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2 bg-slate-800/30 p-1.5 rounded-2xl border border-slate-700/50">
+                <button
+                  id="apply-schedule-btn"
+                  type="button"
+                  disabled={!isAdmin || isApplyingSchedule || !allOttaviCompleted || quartiStarted}
+                  title={!allOttaviCompleted ? "Attendere la fine di tutti gli Ottavi di Finale" : (quartiStarted ? "I Quarti di Finale sono già iniziati" : "")}
+                  onClick={() => setIsConfirmApplyOpen(true)}
+                  className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold rounded-xl text-sm border border-slate-700 flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isApplyingSchedule ? 'animate-spin' : ''}`} />
+                  <span>Ricalcola orari dai Quarti di finale</span>
+                </button>
+                <div className="flex items-center gap-2 px-3 border-l border-slate-700/50">
+                  <label htmlFor="input-qf-start-time-mini" className="text-xs font-semibold text-slate-400 whitespace-nowrap flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    Inizio (Opz.)
+                  </label>
+                  <input
+                    id="input-qf-start-time-mini"
+                    type="time"
+                    disabled={!isAdmin}
+                    value={quarterFinalsStartTime || formatMinutesToTime(endOttaviMin)}
+                    onChange={(e) => setQuarterFinalsStartTime(e.target.value)}
+                    className="w-[85px] bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-lg px-2 py-1.5 text-xs font-mono font-bold text-white outline-none disabled:opacity-60 text-center"
+                  />
+                </div>
+              </div>
             )}
           </div>
 
@@ -791,7 +848,7 @@ export default function SettingsTab({
                   </div>
                   <div className="text-right">
                     <span className="text-xs font-mono font-bold text-slate-300">
-                      {formatMinutesToTime(endOttaviMin)} → {formatMinutesToTime(endQuartiMin)}
+                      {formatMinutesToTime(startQuartiMin)} → {formatMinutesToTime(endQuartiMin)}
                     </span>
                     <span className="text-[10px] text-slate-500 block">
                       {Math.floor(quartiDuration / 60)}h {quartiDuration % 60}m
@@ -820,16 +877,16 @@ export default function SettingsTab({
                   </div>
                 </div>
 
-                {/* 5. Finali */}
+                {/* 5. Grand Finale */}
                 <div className="p-3 bg-slate-950/80 rounded-2xl border border-amber-500/30 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
                     <div className="w-7 h-7 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-xs">
                       5
                     </div>
                     <div>
-                      <span className="text-xs font-bold text-white block">Finali 3°-4° e 1°-2° 🏆</span>
+                      <span className="text-xs font-bold text-white block">Grand Finale 1° e 2° Posto 🏆</span>
                       <span className="text-[11px] text-slate-400">
-                        {durationSingleSet}m (3°-4°) + {durationBestOf3}m (1°-2°)
+                        1 × {durationBestOf3} min 
                       </span>
                     </div>
                   </div>
@@ -858,8 +915,8 @@ export default function SettingsTab({
       {/* Confirm Apply Schedule Modal */}
       <ConfirmModal
         isOpen={isConfirmApplyOpen}
-        title="Ricalcolare gli orari di tutte le partite?"
-        message={`Verranno aggiornati gli orari di tutte le ${existingMatchesCount} partite del torneo in sequenza su Campo Palamelina, a partire dalle ore ${startTime}, con durata ${durationSingleSet} min (singolo set) e ${durationBestOf3} min (2 su 3).`}
+        title="Ricalcolare gli orari dai Quarti di Finale?"
+        message={`Verranno aggiornati esclusivamente gli orari delle partite dalla fase ad eliminazione diretta (Quarti di Finale in poi), a partire dalle ore ${quarterFinalsStartTime || formatMinutesToTime(endOttaviMin)}. Gli orari della fase a Gironi e degli Ottavi rimarranno invariati.`}
         confirmLabel="Ricalcola Orari"
         cancelLabel="Annulla"
         isDestructive={false}
