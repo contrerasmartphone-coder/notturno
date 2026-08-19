@@ -79,6 +79,7 @@ export default function GroupsTab({
   // Drag and Drop State for Matches (Chronological View Reordering)
   const [draggedMatchId, setDraggedMatchId] = useState<string | null>(null);
   const [dragOverMatchId, setDragOverMatchId] = useState<string | null>(null);
+  const [selectedMatchForSwapId, setSelectedMatchForSwapId] = useState<string | null>(null);
   const [reorderMode, setReorderMode] = useState<'swap' | 'shift'>('swap');
   const [isReorderingMatches, setIsReorderingMatches] = useState<boolean>(false);
   const [matchToReorder, setMatchToReorder] = useState<Match | null>(null);
@@ -269,6 +270,56 @@ export default function GroupsTab({
   const handleMatchDragEnd = () => {
     setDraggedMatchId(null);
     setDragOverMatchId(null);
+  };
+
+  // Touch Drag & Drop Handlers for Mobile / iOS
+  const handleMatchTouchStart = (e: React.TouchEvent, matchId: string) => {
+    const match = groupMatches.find((m) => m.id === matchId);
+    if (!isAdmin || !match || match.status === 'completed' || isReorderingMatches) return;
+    setDraggedMatchId(matchId);
+  };
+
+  const handleMatchTouchMove = (e: React.TouchEvent) => {
+    if (!draggedMatchId) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!targetElement) return;
+    const cardElement = targetElement.closest('[data-chrono-match-id]');
+    if (cardElement) {
+      const targetId = cardElement.getAttribute('data-chrono-match-id');
+      if (targetId && targetId !== draggedMatchId) {
+        const targetMatch = groupMatches.find((m) => m.id === targetId);
+        if (targetMatch && targetMatch.status !== 'completed') {
+          setDragOverMatchId(targetId);
+        }
+      }
+    }
+  };
+
+  const handleMatchTouchEnd = async () => {
+    const sourceId = draggedMatchId;
+    const targetId = dragOverMatchId;
+    setDraggedMatchId(null);
+    setDragOverMatchId(null);
+    if (!sourceId || !targetId || sourceId === targetId || !isAdmin) return;
+    await executeMatchReorder(sourceId, targetId, reorderMode);
+  };
+
+  const handleCardTapSelect = async (matchId: string) => {
+    if (!isAdmin) return;
+    const match = groupMatches.find((m) => m.id === matchId);
+    if (!match || match.status === 'completed' || isReorderingMatches) return;
+
+    if (!selectedMatchForSwapId) {
+      setSelectedMatchForSwapId(matchId);
+    } else if (selectedMatchForSwapId === matchId) {
+      setSelectedMatchForSwapId(null);
+    } else {
+      const sourceId = selectedMatchForSwapId;
+      setSelectedMatchForSwapId(null);
+      await executeMatchReorder(sourceId, matchId, reorderMode);
+    }
   };
 
   const executeMatchReorder = async (
@@ -1150,6 +1201,7 @@ export default function GroupsTab({
               const set1 = m.sets && m.sets[0] ? m.sets[0] : null;
               const isDraggingThis = draggedMatchId === m.id;
               const isDragOverThis = dragOverMatchId === m.id;
+              const isSelectedForSwap = selectedMatchForSwapId === m.id;
               const pendingIdx = pendingChronologicalMatches.findIndex((p) => p.id === m.id);
               const isFirstPending = pendingIdx === 0;
               const isLastPending = pendingIdx === pendingChronologicalMatches.length - 1;
@@ -1158,6 +1210,7 @@ export default function GroupsTab({
                 <div
                   key={m.id}
                   id={`chrono-match-row-${m.id}`}
+                  data-chrono-match-id={m.id}
                   draggable={isAdmin && !isCompleted && !isReorderingMatches}
                   onDragStart={(e) => !isCompleted && handleMatchDragStart(e, m.id)}
                   onDragEnter={(e) => {
@@ -1175,10 +1228,12 @@ export default function GroupsTab({
                   }}
                   onDragEnd={handleMatchDragEnd}
                   onDrop={(e) => !isCompleted && handleMatchDrop(e, m.id)}
+                  onTouchMove={handleMatchTouchMove}
+                  onTouchEnd={handleMatchTouchEnd}
                   className={`p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-2xl transition duration-150 ${
                     isDraggingThis
                       ? 'opacity-40 border-2 border-dashed border-amber-400 bg-amber-500/5'
-                      : isDragOverThis
+                      : isDragOverThis || isSelectedForSwap
                       ? 'border-2 border-amber-400 bg-amber-500/15 scale-[1.01] shadow-xl shadow-amber-500/20'
                       : isCompleted
                       ? 'bg-zinc-950/60 border-2 border-zinc-700/80 sm:border-zinc-800/80 opacity-90 shadow-md'
@@ -1198,13 +1253,18 @@ export default function GroupsTab({
                           </div>
                         ) : (
                           <>
-                            {/* Drag Handle */}
-                            <div
-                              className="p-1 text-zinc-500 hover:text-amber-400 cursor-grab active:cursor-grabbing rounded-lg hover:bg-zinc-800 transition"
-                              title="Trascina per riordinare l'ora della gara da disputare"
+                            {/* Drag / Touch / Tap Handle */}
+                            <button
+                              type="button"
+                              onTouchStart={(e) => handleMatchTouchStart(e, m.id)}
+                              onClick={() => handleCardTapSelect(m.id)}
+                              className={`p-1.5 text-zinc-400 hover:text-amber-400 active:text-amber-300 rounded-xl hover:bg-zinc-800 transition cursor-grab active:cursor-grabbing touch-none ${
+                                isSelectedForSwap ? 'text-amber-400 bg-amber-500/20 border border-amber-400/50' : ''
+                              }`}
+                              title="Trascina o tocca per selezionare e scambiare l'ora della gara"
                             >
                               <GripVertical className="w-4 h-4" />
-                            </div>
+                            </button>
                             {/* Step Move Up/Down buttons */}
                             <div className="flex items-center gap-1.5">
                               <div className="flex flex-col gap-0.5">

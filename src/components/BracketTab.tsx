@@ -32,6 +32,7 @@ export default function BracketTab({
   const [isSimulateModalOpen, setIsSimulateModalOpen] = useState(false);
   const [draggedMatchId, setDraggedMatchId] = useState<string | null>(null);
   const [dragOverMatchId, setDragOverMatchId] = useState<string | null>(null);
+  const [selectedMatchForSwapId, setSelectedMatchForSwapId] = useState<string | null>(null);
 
   const handleMatchDragStart = (e: React.DragEvent, matchId: string) => {
     if (!isAdmin) return;
@@ -53,16 +54,10 @@ export default function BracketTab({
     setDragOverMatchId(null);
   };
 
-  const handleMatchDrop = async (e: React.DragEvent, targetMatchId: string) => {
-    e.preventDefault();
-    const sourceId = e.dataTransfer.getData('text/plain') || draggedMatchId;
-    handleMatchDragEnd();
-
+  const executeBracketSwap = async (sourceId: string, targetMatchId: string) => {
     if (!sourceId || sourceId === targetMatchId || !isAdmin || !onBatchUpdateMatches) return;
-
     const sourceMatch = matches.find((m) => m.id === sourceId);
     const targetMatch = matches.find((m) => m.id === targetMatchId);
-
     if (!sourceMatch || !targetMatch) return;
 
     // Must be same phase/round (e.g. both round 2 / ottavi, round 3 / quarti, round 4 / semi)
@@ -104,6 +99,76 @@ export default function BracketTab({
         'Inversione Eseguita'
       );
     }
+  };
+
+  const handleBracketTouchStart = (e: React.TouchEvent, matchId: string) => {
+    const match = matches.find((m) => m.id === matchId);
+    if (!isAdmin || !match || match.status === 'completed') return;
+    setDraggedMatchId(matchId);
+  };
+
+  const handleBracketTouchMove = (e: React.TouchEvent) => {
+    if (!draggedMatchId) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!targetElement) return;
+    const cardElement = targetElement.closest('[data-bracket-match-id]');
+    if (cardElement) {
+      const targetId = cardElement.getAttribute('data-bracket-match-id');
+      if (targetId && targetId !== draggedMatchId) {
+        const targetMatch = matches.find((m) => m.id === targetId);
+        const sourceMatch = matches.find((m) => m.id === draggedMatchId);
+        if (
+          targetMatch &&
+          targetMatch.status !== 'completed' &&
+          sourceMatch &&
+          sourceMatch.round === targetMatch.round
+        ) {
+          setDragOverMatchId(targetId);
+        }
+      }
+    }
+  };
+
+  const handleBracketTouchEnd = async () => {
+    const sourceId = draggedMatchId;
+    const targetId = dragOverMatchId;
+    setDraggedMatchId(null);
+    setDragOverMatchId(null);
+    if (!sourceId || !targetId || sourceId === targetId || !isAdmin) return;
+    await executeBracketSwap(sourceId, targetId);
+  };
+
+  const handleBracketCardTapSelect = async (matchId: string) => {
+    if (!isAdmin) return;
+    const match = matches.find((m) => m.id === matchId);
+    if (!match || match.status === 'completed') return;
+
+    if (!selectedMatchForSwapId) {
+      setSelectedMatchForSwapId(matchId);
+      if (onShowToast) {
+        onShowToast(
+          `Gara "${match.roundLabel}" selezionata. Tocca un'altra gara dello stesso turno per scambiare l'orario.`,
+          'info',
+          'Selezionata per Scambio'
+        );
+      }
+    } else if (selectedMatchForSwapId === matchId) {
+      setSelectedMatchForSwapId(null);
+    } else {
+      const sourceId = selectedMatchForSwapId;
+      setSelectedMatchForSwapId(null);
+      await executeBracketSwap(sourceId, matchId);
+    }
+  };
+
+  const handleMatchDrop = async (e: React.DragEvent, targetMatchId: string) => {
+    e.preventDefault();
+    const sourceId = e.dataTransfer.getData('text/plain') || draggedMatchId;
+    handleMatchDragEnd();
+    if (!sourceId || sourceId === targetMatchId || !isAdmin) return;
+    await executeBracketSwap(sourceId, targetMatchId);
   };
 
   const getTeamName = (team: Team | null | undefined, fallback: string = 'TBD'): string => {
@@ -175,11 +240,13 @@ export default function BracketTab({
     const isLive = m.status === 'live';
     const isDraggingThis = draggedMatchId === m.id;
     const isDragOverThis = dragOverMatchId === m.id;
+    const isSelectedForSwap = selectedMatchForSwapId === m.id;
 
     return (
       <div
         key={m.id}
         id={`bracket-match-${m.id}`}
+        data-bracket-match-id={m.id}
         draggable={isAdmin && !isCompleted}
         onDragStart={(e) => !isCompleted && handleMatchDragStart(e, m.id)}
         onDragEnter={(e) => {
@@ -197,10 +264,12 @@ export default function BracketTab({
         }}
         onDragEnd={handleMatchDragEnd}
         onDrop={(e) => !isCompleted && handleMatchDrop(e, m.id)}
+        onTouchMove={handleBracketTouchMove}
+        onTouchEnd={handleBracketTouchEnd}
         className={`bg-slate-900 border rounded-2xl p-3 sm:p-4 shadow-md transition flex flex-col justify-between ${
           isDraggingThis
             ? 'opacity-40 border-2 border-dashed border-amber-400 bg-amber-500/5'
-            : isDragOverThis
+            : isDragOverThis || isSelectedForSwap
             ? 'border-2 border-amber-400 bg-amber-500/15 scale-[1.01] shadow-xl shadow-amber-500/20'
             : highlightSpecial
             ? 'border-amber-500/50 bg-gradient-to-b from-amber-500/10 to-slate-900 shadow-amber-500/5'
@@ -214,12 +283,17 @@ export default function BracketTab({
           <div className="flex flex-col gap-1.5 mb-2.5 text-[11px] sm:text-xs text-slate-400">
             <div className="flex items-center gap-1.5 min-w-0">
               {isAdmin && !isCompleted && (
-                <div
-                  className="p-0.5 text-zinc-500 hover:text-amber-400 cursor-grab active:cursor-grabbing rounded transition shrink-0"
-                  title="Trascina per scambiare con un'altra partita della stessa fase"
+                <button
+                  type="button"
+                  onTouchStart={(e) => handleBracketTouchStart(e, m.id)}
+                  onClick={() => handleBracketCardTapSelect(m.id)}
+                  className={`p-1 text-zinc-400 hover:text-amber-400 active:text-amber-300 rounded-lg hover:bg-zinc-800 transition cursor-grab active:cursor-grabbing shrink-0 touch-none ${
+                    isSelectedForSwap ? 'text-amber-400 bg-amber-500/20 border border-amber-400/50' : ''
+                  }`}
+                  title="Trascina o tocca per scambiare con un'altra partita della stessa fase"
                 >
                   <GripVertical className="w-3.5 h-3.5" />
-                </div>
+                </button>
               )}
               <span className="font-semibold text-amber-400 text-xs sm:text-sm break-words leading-tight whitespace-nowrap">{m.phase === 'eliminazione' ? m.roundLabel.replace(/\s*\(.*?\)/g, '') : m.roundLabel}</span>
             </div>
