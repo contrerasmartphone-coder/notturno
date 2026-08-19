@@ -527,12 +527,14 @@ export default function TeamsTab({
                             return (
                               <span
                                 key={p.id}
-                                className={`text-[10px] font-medium px-2 py-0.5 rounded-lg border flex items-center gap-1.5 ${badge.badgeClass}`}
-                                title={`${p.name} (${p.level})`}
+                                className={`text-[10px] font-medium px-2 py-0.5 rounded-lg border flex items-center gap-1.5 ${
+                                  isAdmin ? badge.badgeClass : 'bg-slate-900/80 text-slate-300 border-slate-700/80'
+                                }`}
+                                title={isAdmin ? `${p.name} (${p.level})` : p.name}
                               >
-                                <span className={`w-1.5 h-1.5 rounded-full ${badge.dotClass}`} />
+                                {isAdmin && <span className={`w-1.5 h-1.5 rounded-full ${badge.dotClass}`} />}
                                 <span className="font-semibold">{p.name}</span>
-                                <span className="opacity-75 text-[9px]">({p.level})</span>
+                                {isAdmin && <span className="opacity-75 text-[9px]">({p.level})</span>}
                               </span>
                             );
                           })}
@@ -715,12 +717,14 @@ export default function TeamsTab({
                             </div>
                             <div>
                               <span className="text-sm font-bold text-white block">{player.name}</span>
-                              <span
-                                className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.2 rounded-md border mt-0.5 ${badge.badgeClass}`}
-                              >
-                                <span className={`w-1.5 h-1.5 rounded-full ${badge.dotClass}`} />
-                                <span>Livello {player.level}</span>
-                              </span>
+                              {isAdmin && (
+                                <span
+                                  className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.2 rounded-md border mt-0.5 ${badge.badgeClass}`}
+                                >
+                                  <span className={`w-1.5 h-1.5 rounded-full ${badge.dotClass}`} />
+                                  <span>Livello {player.level}</span>
+                                </span>
+                              )}
                             </div>
                           </div>
 
