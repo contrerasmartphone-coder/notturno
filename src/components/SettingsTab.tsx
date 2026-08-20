@@ -27,6 +27,11 @@ import {
   Bookmark,
   Check,
   FastForward,
+  KeyRound,
+  Eye,
+  EyeOff,
+  LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ConfirmModal from './ConfirmModal';
@@ -50,6 +55,9 @@ interface SettingsTabProps {
   onCreateBackup: (name: string) => Promise<void>;
   onRestoreBackup: (backup: TournamentBackup) => Promise<void>;
   onDeleteBackup: (backupId: string, backupName: string) => Promise<void>;
+  onUpdateAdminPassword: (newPassword: string) => Promise<void>;
+  onRevokeAllSessions: () => Promise<void>;
+  onForceReloadAllClients?: () => Promise<void>;
   onOpenAdminLogin: () => void;
   onShowToast: (message: string, type: 'success' | 'error' | 'info' | 'warning', title?: string) => void;
 }
@@ -65,6 +73,9 @@ export default function SettingsTab({
   onCreateBackup,
   onRestoreBackup,
   onDeleteBackup,
+  onUpdateAdminPassword,
+  onRevokeAllSessions,
+  onForceReloadAllClients,
   onOpenAdminLogin,
   onShowToast,
 }: SettingsTabProps) {
@@ -93,6 +104,15 @@ export default function SettingsTab({
   const [backupToRestore, setBackupToRestore] = useState<TournamentBackup | null>(null);
   const [backupToDelete, setBackupToDelete] = useState<TournamentBackup | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
+
+  // Admin Security & Password State
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [isRevokingSessions, setIsRevokingSessions] = useState(false);
+  const [isForceReloading, setIsForceReloading] = useState(false);
+  const [isConfirmRevokeOpen, setIsConfirmRevokeOpen] = useState(false);
 
   // Sync state when config prop changes
   useEffect(() => {
@@ -232,6 +252,68 @@ export default function SettingsTab({
       setBackupToDelete(null);
     } catch {
       onShowToast('Errore durante l\'eliminazione del backup.', 'error', 'Errore');
+    }
+  };
+
+  // Handle Admin Password Change Form
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAdmin) {
+      onOpenAdminLogin();
+      return;
+    }
+    const cleanNew = newAdminPassword.trim();
+    const cleanConfirm = confirmAdminPassword.trim();
+
+    if (!cleanNew) {
+      onShowToast('Inserisci la nuova password.', 'warning', 'Campo Richiesto');
+      return;
+    }
+    if (cleanNew.length < 4) {
+      onShowToast('La password deve essere composta da almeno 4 caratteri.', 'warning', 'Password Troppo Corta');
+      return;
+    }
+    if (cleanNew !== cleanConfirm) {
+      onShowToast('Le due password digitate non corrispondono. Ricontrolla e riprova.', 'error', 'Mancata Corrispondenza');
+      return;
+    }
+
+    try {
+      setIsUpdatingPassword(true);
+      await onUpdateAdminPassword(cleanNew);
+      setNewAdminPassword('');
+      setConfirmAdminPassword('');
+      setShowNewPassword(false);
+    } catch {
+      onShowToast('Impossibile aggiornare la password admin su Firestore.', 'error', 'Errore');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  // Handle Revoke All Sessions Confirm
+  const handleRevokeAllSessionsConfirm = async () => {
+    setIsRevokingSessions(true);
+    try {
+      await onRevokeAllSessions();
+      setIsConfirmRevokeOpen(false);
+    } catch {
+      onShowToast('Errore durante la revoca delle sessioni.', 'error', 'Errore');
+    } finally {
+      setIsRevokingSessions(false);
+    }
+  };
+
+  // Handle Manual Force Reload All Clients
+  const handleForceReloadClick = async () => {
+    if (!onForceReloadAllClients) return;
+    setIsForceReloading(true);
+    try {
+      await onForceReloadAllClients();
+    } catch {
+      onShowToast('Errore durante l\'invio del comando di ricaricamento forzato.', 'error', 'Errore');
+    } finally {
+      setIsForceReloading(false);
     }
   };
 
@@ -744,6 +826,147 @@ export default function SettingsTab({
               )}
             </div>
           </div>
+
+          {/* SECTION 4: SICUREZZA & PASSWORD AMMINISTRATORE */}
+          <div id="admin-security-management-section" className="bg-slate-900/60 border border-slate-800 p-6 rounded-3xl space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-2xl border border-amber-500/20">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    Sicurezza & Password Amministratore
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Cambia la password di accesso al pannello di controllo e gestisci le sessioni attive.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-xs font-semibold">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Sessione Protetta</span>
+              </div>
+            </div>
+
+            {/* Change Password Form */}
+            <form onSubmit={handlePasswordSubmit} className="space-y-4 bg-slate-950/80 p-5 rounded-2xl border border-slate-800">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                  Modifica Password Admin
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="text-xs text-slate-400 hover:text-amber-400 flex items-center gap-1 transition"
+                >
+                  {showNewPassword ? (
+                    <>
+                      <EyeOff className="w-3.5 h-3.5" />
+                      <span>Nascondi</span>
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Mostra caratteri</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Nuova Password</label>
+                  <input
+                    id="input-new-admin-password"
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={newAdminPassword}
+                    onChange={(e) => setNewAdminPassword(e.target.value)}
+                    placeholder="Minimo 4 caratteri..."
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-xl px-4 py-2 text-sm text-white placeholder-slate-500 outline-none font-mono"
+                    disabled={isUpdatingPassword}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Conferma Nuova Password</label>
+                  <input
+                    id="input-confirm-admin-password"
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={confirmAdminPassword}
+                    onChange={(e) => setConfirmAdminPassword(e.target.value)}
+                    placeholder="Digita di nuovo la password..."
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-xl px-4 py-2 text-sm text-white placeholder-slate-500 outline-none font-mono"
+                    disabled={isUpdatingPassword}
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300/90 leading-relaxed">
+                💡 <strong>Disconnessione Automatica:</strong> Salvando una nuova password, tutti gli altri dispositivi o smartphone precedentemente collegati come admin verranno <strong>immediatamente espulsi e disconnessi</strong> in tempo reale e dovranno reinserire la nuova password.
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  id="submit-new-admin-password-btn"
+                  type="submit"
+                  disabled={isUpdatingPassword || !newAdminPassword.trim() || !confirmAdminPassword.trim()}
+                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer"
+                >
+                  <KeyRound className="w-4 h-4" />
+                  {isUpdatingPassword ? 'Aggiornamento in corso...' : 'Salva Nuova Password'}
+                </button>
+              </div>
+            </form>
+
+            {/* Remote Session Invalidation Action */}
+            <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <LogOut className="w-4 h-4 text-rose-400" />
+                  Disconnetti Tutte le Altre Sessioni
+                </h4>
+                <p className="text-xs text-slate-400 max-w-xl">
+                  Revoca istantaneamente l'accesso amministratore su tutti gli altri browser e telefoni collegati, mantenendo attiva solo la tua sessione corrente.
+                </p>
+              </div>
+
+              <button
+                id="revoke-all-sessions-btn"
+                type="button"
+                onClick={() => setIsConfirmRevokeOpen(true)}
+                disabled={isRevokingSessions}
+                className="px-4 py-2.5 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-rose-200 border border-rose-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer shrink-0 whitespace-nowrap"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Disconnetti Altre Sessioni</span>
+              </button>
+            </div>
+
+            {/* Force Reload All Connected Devices */}
+            <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-sky-400" />
+                  Forza Ricaricamento Automatico dei Client (Auto-Reload)
+                </h4>
+                <p className="text-xs text-slate-400 max-w-xl">
+                  Invia un segnale in tempo reale a tutti i telefoni e browser aperti. L'app eseguirà un aggiornamento forzato della pagina (`window.location.reload`), scaricando l'ultima versione ed espellendo chiunque non possieda la nuova password.
+                </p>
+              </div>
+
+              <button
+                id="force-reload-all-clients-btn"
+                type="button"
+                onClick={handleForceReloadClick}
+                disabled={isForceReloading}
+                className="px-4 py-2.5 bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 hover:text-sky-200 border border-sky-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer shrink-0 whitespace-nowrap"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span>{isForceReloading ? 'Invio segnale...' : 'Forza Ricarica Tutti i Dispositivi'}</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Right Column: Cronoprogramma & Timeline Stimata (5 cols) */}
@@ -949,6 +1172,18 @@ export default function SettingsTab({
         isDestructive={true}
         onConfirm={handleConfirmDelete}
         onClose={() => setBackupToDelete(null)}
+      />
+
+      {/* Confirm Revoke All Active Admin Sessions Modal */}
+      <ConfirmModal
+        isOpen={isConfirmRevokeOpen}
+        title="Disconnettere tutte le sessioni aperte?"
+        message="Questa operazione invaliderà immediatamente l'accesso su tutti gli altri browser, tablet e smartphone attualmente autenticati come amministratore. Chiunque vorrà gestire il torneo dovrà inserire nuovamente la password."
+        confirmLabel={isRevokingSessions ? 'Disconnessione...' : 'Disconnetti Tutte'}
+        cancelLabel="Annulla"
+        isDestructive={true}
+        onConfirm={handleRevokeAllSessionsConfirm}
+        onClose={() => setIsConfirmRevokeOpen(false)}
       />
     </div>
   );

@@ -255,9 +255,41 @@ export default function App() {
             durationBestOf3Minutes: cfg.durationBestOf3Minutes || 50,
             quarterFinalsMode: cfg.quarterFinalsMode || 'single_set_25',
             tournamentStarted: Boolean(cfg.tournamentStarted),
+            adminPassword: cfg.adminPassword || '90100',
+            adminSessionVersion: cfg.adminSessionVersion || 1,
+            forceReloadTimestamp: cfg.forceReloadTimestamp,
           }));
           if (cfg.quarterFinalsMode) {
             setQuarterFinalsMode(cfg.quarterFinalsMode);
+          }
+
+          // Real-time Auto-Reload Check for all connected clients
+          if (cfg.forceReloadTimestamp) {
+            const lastReload = sessionStorage.getItem('volley_last_force_reload');
+            if (lastReload === null) {
+              sessionStorage.setItem('volley_last_force_reload', String(cfg.forceReloadTimestamp));
+            } else if (lastReload !== String(cfg.forceReloadTimestamp)) {
+              sessionStorage.setItem('volley_last_force_reload', String(cfg.forceReloadTimestamp));
+              window.location.reload();
+              return;
+            }
+          }
+
+          // Real-time Admin Session Invalidation Check
+          const isAuth = sessionStorage.getItem('volley_admin_auth') === 'true';
+          const localSessionVersion = sessionStorage.getItem('volley_admin_session_version');
+          const serverSessionVersion = String(cfg.adminSessionVersion || 1);
+
+          if (isAuth && localSessionVersion && localSessionVersion !== serverSessionVersion) {
+            setIsAdmin(false);
+            sessionStorage.removeItem('volley_admin_auth');
+            sessionStorage.removeItem('volley_admin_session_version');
+            setActiveTab((curr) => (curr === 'settings' ? 'teams' : curr));
+            addToast(
+              'La sessione amministratore è stata revocata o la password è stata modificata. Effettua nuovamente il login.',
+              'warning',
+              'Sessione Disconnessa'
+            );
           }
         }
         setLoading(false);
@@ -293,15 +325,18 @@ export default function App() {
   }, []);
 
   // Admin Auth Handlers
-  const handleAdminLoginSuccess = () => {
+  const handleAdminLoginSuccess = (sessionVersion?: number) => {
+    const version = String(sessionVersion || config.adminSessionVersion || 1);
     setIsAdmin(true);
     sessionStorage.setItem('volley_admin_auth', 'true');
+    sessionStorage.setItem('volley_admin_session_version', version);
     addToast('Accesso Amministratore effettuato con successo.', 'success', 'Benvenuto Admin');
   };
 
   const handleAdminLogout = () => {
     setIsAdmin(false);
     sessionStorage.removeItem('volley_admin_auth');
+    sessionStorage.removeItem('volley_admin_session_version');
     if (activeTab === 'settings') {
       setActiveTab('teams');
     }
@@ -1151,6 +1186,114 @@ export default function App() {
     }
   };
 
+  // Update Admin Password & Invalidate All Remote Sessions
+  const handleUpdateAdminPassword = async (newPassword: string) => {
+    try {
+      const trimmed = newPassword.trim();
+      if (!trimmed || trimmed.length < 4) {
+        addToast('La password deve contenere almeno 4 caratteri.', 'warning', 'Password Troppo Corta');
+        return;
+      }
+      const newSessionVersion = Date.now();
+      const reloadNow = Date.now();
+      const configRef = doc(db, 'config', 'settings');
+      const updatedConfig: TournamentConfig = {
+        ...config,
+        adminPassword: trimmed,
+        adminSessionVersion: newSessionVersion,
+        forceReloadTimestamp: reloadNow,
+      };
+      // Keep local session aligned before write
+      sessionStorage.setItem('volley_admin_session_version', String(newSessionVersion));
+      sessionStorage.setItem('volley_last_force_reload', String(reloadNow));
+
+      await setDoc(configRef, cleanObject(updatedConfig), { merge: true });
+
+      // Notification log
+      const notifRef = doc(db, 'notifications', `notif_security_${Date.now()}`);
+      await setDoc(
+        notifRef,
+        cleanObject({
+          id: `notif_security_${Date.now()}`,
+          title: 'Password Admin Aggiornata 🔐',
+          message: 'La password del pannello di controllo è stata modificata. Tutte le altre sessioni aperte sono state disconnesse e ricaricate.',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: 'system',
+        })
+      );
+
+      addToast(
+        'Password aggiornata con successo! Tutti gli altri dispositivi sono stati disconnessi e ricaricati in tempo reale.',
+        'success',
+        'Sicurezza Aggiornata'
+      );
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'config/settings');
+      throw err;
+    }
+  };
+
+  // Revoke All Active Admin Sessions Remotely
+  const handleRevokeAllAdminSessions = async () => {
+    try {
+      const newSessionVersion = Date.now();
+      const reloadNow = Date.now();
+      const configRef = doc(db, 'config', 'settings');
+      const updatedConfig: TournamentConfig = {
+        ...config,
+        adminSessionVersion: newSessionVersion,
+        forceReloadTimestamp: reloadNow,
+      };
+      // Keep local session aligned before write
+      sessionStorage.setItem('volley_admin_session_version', String(newSessionVersion));
+      sessionStorage.setItem('volley_last_force_reload', String(reloadNow));
+
+      await setDoc(configRef, cleanObject(updatedConfig), { merge: true });
+
+      // Notification log
+      const notifRef = doc(db, 'notifications', `notif_security_${Date.now()}`);
+      await setDoc(
+        notifRef,
+        cleanObject({
+          id: `notif_security_${Date.now()}`,
+          title: 'Sessioni Admin Revocate 🛡️',
+          message: 'Tutte le sessioni attive sono state disconnesse e ricaricate dal pannello impostazioni.',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: 'system',
+        })
+      );
+
+      addToast(
+        'Tutte le altre sessioni attive sono state disconnesse e ricaricate immediatamente.',
+        'info',
+        'Sessioni Revocate'
+      );
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'config/settings');
+      throw err;
+    }
+  };
+
+  // Force Reload All Connected Devices
+  const handleForceReloadAllClients = async () => {
+    try {
+      const reloadNow = Date.now();
+      const configRef = doc(db, 'config', 'settings');
+      sessionStorage.setItem('volley_last_force_reload', String(reloadNow));
+
+      await setDoc(configRef, cleanObject({ ...config, forceReloadTimestamp: reloadNow }), { merge: true });
+
+      addToast(
+        'Segnale di ricaricamento inviato a tutti i dispositivi connessi.',
+        'info',
+        'Auto-Reload Inviato'
+      );
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'config/settings');
+      throw err;
+    }
+  };
+
   const hasGroupsGenerated = matches.some((m) => m.phase === 'gironi') || teams.some((t) => !!t.group);
   const hasBracketGenerated = matches.some((m) => m.phase === 'eliminazione' || m.round >= 2);
   const isTournamentStarted = Boolean(config.tournamentStarted);
@@ -1526,6 +1669,9 @@ export default function App() {
                 onCreateBackup={handleCreateBackup}
                 onRestoreBackup={handleRestoreBackup}
                 onDeleteBackup={handleDeleteBackup}
+                onUpdateAdminPassword={handleUpdateAdminPassword}
+                onRevokeAllSessions={handleRevokeAllAdminSessions}
+                onForceReloadAllClients={handleForceReloadAllClients}
                 onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
                 onShowToast={addToast}
               />
@@ -1608,9 +1754,11 @@ export default function App() {
         />
       )}
 
-      {/* Admin Login Modal (Password: 90100) */}
+      {/* Admin Login Modal */}
       <AdminLoginModal
         isOpen={isAdminLoginOpen}
+        expectedPassword={config.adminPassword || '90100'}
+        sessionVersion={config.adminSessionVersion || 1}
         onClose={() => setIsAdminLoginOpen(false)}
         onSuccess={handleAdminLoginSuccess}
       />

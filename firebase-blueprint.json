@@ -84,6 +84,9 @@
         "startTime": { "type": "string" },
         "durationSingleSetMinutes": { "type": "number" },
         "durationBestOf3Minutes": { "type": "number" },
+        "adminPassword": { "type": "string" },
+        "adminSessionVersion": { "type": "number" },
+        "forceReloadTimestamp": { "type": "number" },
         "tournamentPhase": { "type": "string", "enum": ["setup", "gironi", "eliminazione", "completed"] }
       }
     },

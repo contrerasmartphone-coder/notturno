@@ -85,6 +85,9 @@ export interface TournamentConfig {
   durationBestOf3_15Minutes?: number; // Durata partita 2 set su 3 a 15 (minuti)
   matchDurationMinutes?: number;
   tournamentStarted?: boolean;
+  adminPassword?: string;
+  adminSessionVersion?: number;
+  forceReloadTimestamp?: number;
 }
 
 export interface TournamentBackup {

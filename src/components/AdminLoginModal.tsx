@@ -1,28 +1,40 @@
 import React, { useState } from 'react';
-import { Lock, KeyRound, X, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Lock, KeyRound, X, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface AdminLoginModalProps {
   isOpen: boolean;
+  expectedPassword?: string;
+  sessionVersion?: number;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (sessionVersion: number) => void;
 }
 
-export default function AdminLoginModal({ isOpen, onClose, onSuccess }: AdminLoginModalProps) {
+export default function AdminLoginModal({
+  isOpen,
+  expectedPassword = '90100',
+  sessionVersion = 1,
+  onClose,
+  onSuccess,
+}: AdminLoginModalProps) {
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === '90100') {
+    const cleanInput = password.trim();
+    const targetPassword = (expectedPassword || '90100').trim();
+
+    if (cleanInput === targetPassword) {
       setError('');
       setPassword('');
-      onSuccess();
+      onSuccess(sessionVersion || 1);
       onClose();
     } else {
-      setError('Password errata. Riprova.');
+      setError('Password errata. Riprova con il codice corretto.');
     }
   };
 
@@ -55,21 +67,29 @@ export default function AdminLoginModal({ isOpen, onClose, onSuccess }: AdminLog
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-              Password Admin
+              Password Amministratore
             </label>
             <div className="relative">
               <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
                   setError('');
                 }}
                 placeholder="Inserisci codice..."
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 text-sm"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 text-sm font-mono"
                 autoFocus
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200 transition p-0.5"
+                title={showPassword ? 'Nascondi password' : 'Mostra password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
             {error && (
               <p className="text-xs text-red-400 mt-1.5 flex items-center gap-1">
