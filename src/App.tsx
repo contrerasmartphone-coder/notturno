@@ -263,6 +263,23 @@ export default function App() {
             setQuarterFinalsMode(cfg.quarterFinalsMode);
           }
 
+          // Real-time Admin Session Invalidation Check
+          const isAuth = sessionStorage.getItem('volley_admin_auth') === 'true';
+          const localSessionVersion = sessionStorage.getItem('volley_admin_session_version');
+          const serverSessionVersion = String(cfg.adminSessionVersion || 1);
+
+          if (isAuth && localSessionVersion !== serverSessionVersion) {
+            setIsAdmin(false);
+            sessionStorage.removeItem('volley_admin_auth');
+            sessionStorage.removeItem('volley_admin_session_version');
+            setActiveTab((curr) => (curr === 'settings' ? 'teams' : curr));
+            addToast(
+              'La sessione amministratore è stata revocata o la password è stata modificata. Effettua nuovamente il login.',
+              'warning',
+              'Sessione Disconnessa'
+            );
+          }
+
           // Real-time Auto-Reload Check for all connected clients
           if (cfg.forceReloadTimestamp) {
             const lastReload = sessionStorage.getItem('volley_last_force_reload');
@@ -273,23 +290,6 @@ export default function App() {
               window.location.reload();
               return;
             }
-          }
-
-          // Real-time Admin Session Invalidation Check
-          const isAuth = sessionStorage.getItem('volley_admin_auth') === 'true';
-          const localSessionVersion = sessionStorage.getItem('volley_admin_session_version');
-          const serverSessionVersion = String(cfg.adminSessionVersion || 1);
-
-          if (isAuth && localSessionVersion && localSessionVersion !== serverSessionVersion) {
-            setIsAdmin(false);
-            sessionStorage.removeItem('volley_admin_auth');
-            sessionStorage.removeItem('volley_admin_session_version');
-            setActiveTab((curr) => (curr === 'settings' ? 'teams' : curr));
-            addToast(
-              'La sessione amministratore è stata revocata o la password è stata modificata. Effettua nuovamente il login.',
-              'warning',
-              'Sessione Disconnessa'
-            );
           }
         }
         setLoading(false);
