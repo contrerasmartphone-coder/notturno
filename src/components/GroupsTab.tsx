@@ -159,7 +159,7 @@ export default function GroupsTab({
   const totalGroupMatches = groupMatches.length || 15;
   const isGroupStageComplete = groupMatches.length === 15 && completedGroupMatches.length === 15;
 
-  const hasGroupsGenerated = groupMatches.length > 0 && teams.some((t) => !!t.group);
+  const hasGroupsGenerated = groupMatches.length > 0 || teams.some((t) => !!t.group);
   const isKnockoutGenerated = matches.some((m) => m.phase === 'eliminazione' || (m.round && m.round >= 2));
 
   if (teams.length < 15 || !hasGroupsGenerated) {
@@ -412,9 +412,13 @@ export default function GroupsTab({
     'Girone E': [],
   };
   teams.forEach((t) => {
-    const g = t.group || 'Girone A';
+    let g = t.group;
+    if (!g) {
+      const matchWithGroup = groupMatches.find((m) => m.team1?.id === t.id || m.team2?.id === t.id);
+      g = matchWithGroup?.groupName || (matchWithGroup?.team1?.id === t.id ? matchWithGroup.team1.group : matchWithGroup?.team2?.group) || 'Girone A';
+    }
     if (groupTeamsMap[g]) {
-      groupTeamsMap[g].push(t);
+      groupTeamsMap[g].push({ ...t, group: g });
     }
   });
 

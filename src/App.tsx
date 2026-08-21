@@ -324,6 +324,41 @@ export default function App() {
     };
   }, []);
 
+  // Self-Healing: If group matches exist in Firestore, ensure all teams have their group assigned
+  useEffect(() => {
+    if (matches.length === 0 || teams.length === 0) return;
+
+    const groupMatches = matches.filter((m) => m.phase === 'gironi' || m.groupName);
+    if (groupMatches.length === 0) return;
+
+    const teamsNeedingFix: Team[] = [];
+    const updatedTeams = teams.map((t) => {
+      if (t.group) return t;
+      const m = groupMatches.find((gm) => gm.team1?.id === t.id || gm.team2?.id === t.id);
+      const derivedGroup = m?.groupName || (m?.team1?.id === t.id ? m.team1.group : m?.team2?.group);
+      if (derivedGroup) {
+        const fixed = { ...t, group: derivedGroup };
+        teamsNeedingFix.push(fixed);
+        return fixed;
+      }
+      return t;
+    });
+
+    if (teamsNeedingFix.length > 0) {
+      setTeams(updatedTeams);
+      try {
+        const batch = writeBatch(db);
+        teamsNeedingFix.forEach((ft) => {
+          const tRef = doc(db, 'teams', ft.id);
+          batch.set(tRef, cleanObject(ft), { merge: true });
+        });
+        batch.commit().catch((err) => console.error('Error auto-healing team groups in Firestore:', err));
+      } catch (e) {
+        console.error('Batch error auto-healing team groups:', e);
+      }
+    }
+  }, [matches, teams]);
+
   // Admin Auth Handlers
   const handleAdminLoginSuccess = (sessionVersion?: number) => {
     const version = String(sessionVersion || config.adminSessionVersion || 1);
@@ -503,10 +538,15 @@ export default function App() {
   const handleLoadDemoTeams = async () => {
     try {
       const batch = writeBatch(db);
-      const configRef = doc(db, 'config', 'settings');
+      const groupMatches = matches.filter((m) => m.phase === 'gironi' || m.groupName);
 
       DEMO_TEAMS.forEach((demo) => {
-        const teamObj = getInitialTeamStats(demo);
+        const matchWithGroup = groupMatches.find((m) => m.team1?.id === demo.id || m.team2?.id === demo.id);
+        const derivedGroup = matchWithGroup?.groupName || (matchWithGroup?.team1?.id === demo.id ? matchWithGroup.team1.group : matchWithGroup?.team2?.group);
+        const teamObj = {
+          ...getInitialTeamStats(demo),
+          ...(derivedGroup ? { group: derivedGroup } : {}),
+        };
         const ref = doc(db, 'teams', teamObj.id);
         batch.set(ref, cleanObject(teamObj));
       });
@@ -1551,6 +1591,7 @@ export default function App() {
             >
               <TeamsTab
                 teams={teams}
+                matches={matches}
                 isAdmin={isAdmin}
                 onAddTeam={handleAddTeam}
                 onUpdateTeam={handleUpdateTeam}

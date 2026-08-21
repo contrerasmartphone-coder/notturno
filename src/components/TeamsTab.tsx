@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Team, TeamLevel, Player, PlayerLevel } from '../types';
+import { Team, TeamLevel, Player, PlayerLevel, Match } from '../types';
 import { sortTeamsByRanking } from '../utils';
 import {
   Users,
@@ -22,6 +22,7 @@ import ConfirmModal from './ConfirmModal';
 
 interface TeamsTabProps {
   teams: Team[];
+  matches?: Match[];
   isAdmin: boolean;
   onAddTeam: (name: string, level: TeamLevel) => Promise<void>;
   onUpdateTeam: (id: string, name: string, level: TeamLevel, players?: Player[]) => Promise<void>;
@@ -30,12 +31,13 @@ interface TeamsTabProps {
   onClearTeams: () => Promise<void>;
   onLoadDemoTeams: () => Promise<void>;
   onGenerateGroups: () => Promise<void>;
-  onResetTournament: () => Promise<void>;
+  onResetTournament?: () => Promise<void>;
   onShowToast?: (message: string, type: 'success' | 'error' | 'info' | 'warning', title?: string) => void;
 }
 
 export default function TeamsTab({
   teams,
+  matches = [],
   isAdmin,
   onAddTeam,
   onUpdateTeam,
@@ -46,7 +48,9 @@ export default function TeamsTab({
   onGenerateGroups,
   onShowToast,
 }: TeamsTabProps) {
-  const hasGroupsGenerated = teams.some((t) => !!t.group);
+  const hasGroupsGenerated =
+    (matches && matches.some((m) => m.phase === 'gironi' || m.groupName)) ||
+    teams.some((t) => !!t.group);
   const [name, setName] = useState('');
   const [level, setLevel] = useState<TeamLevel>('Intermedio');
   const [isSubmitting, setIsSubmitting] = useState(false);
